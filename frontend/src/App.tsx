@@ -1,4 +1,13 @@
 import { useCallback, useEffect, useRef, useState } from "react";
+
+const OP_HOTKEYS: Record<string, { intent: string }> = {
+  s: { intent: "split this graf at the natural sentence boundary" },
+  m: { intent: "merge these grafs; collapse any redundancy with minimal glue" },
+  h: { intent: "hoist this graf to thesis or intro position; reorder context to follow" },
+  j: { intent: "demote this graf under its parent claim" },
+  b: { intent: "move this graf — find the better position for it in the argument flow" },
+};
+
 import { Editor, type EditorHandle } from "@/components/Editor";
 import { CommandPalette } from "@/components/CommandPalette";
 import { DiffOverlay } from "@/components/DiffOverlay";
@@ -59,6 +68,15 @@ export function App() {
         proposeAbort.current = null;
         setStatus("ready", "cancelled");
         setTimeout(() => useSession.getState().setStatus("ready"), 1500);
+        return;
+      }
+      // operator-specific hotkeys: read selection from editor and submit a focused intent
+      if (status === "diff" || status === "thinking") return;
+      const selection = editorRef.current?.getSelectedParagraphIds() ?? [];
+      const opHotkey = OP_HOTKEYS[e.key.toLowerCase()];
+      if (opHotkey && selection.length > 0) {
+        e.preventDefault();
+        await submitIntent(opHotkey.intent, { paragraph_ids: selection });
       }
     };
     window.addEventListener("keydown", onKey);
@@ -102,7 +120,7 @@ export function App() {
   }, [sessionId, setInspectRead, setStatus]);
 
   const submitIntent = useCallback(
-    async (intent: string) => {
+    async (intent: string, selection?: { paragraph_ids: string[] }) => {
       if (!editorRef.current) return;
       const doc = editorRef.current.getDocument();
       setOriginalAtPropose(doc);
@@ -117,6 +135,7 @@ export function App() {
           document: doc,
           intent,
           session_id: sessionId,
+          ...(selection && selection.paragraph_ids.length > 0 ? { selection } : {}),
         });
         if (controller.signal.aborted) return;
         if (r.ok) {

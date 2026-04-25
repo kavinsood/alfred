@@ -11,6 +11,8 @@ export type EditorHandle = {
   setDocument: (doc: AlfredDocument) => void;
   loadMarkdown: (md: string) => void;
   focus: () => void;
+  /** alfredId of paragraph(s) currently under selection. If selection is collapsed, returns the cursor's paragraph. */
+  getSelectedParagraphIds: () => string[];
 };
 
 type Props = {
@@ -65,11 +67,28 @@ export const Editor = forwardRef<EditorHandle, Props>(function Editor({ onReady,
 
   const focus = () => editor?.commands.focus();
 
-  useImperativeHandle(ref, () => ({ getDocument, setDocument, loadMarkdown, focus }), [editor]);
+  const getSelectedParagraphIds = (): string[] => {
+    if (!editor) return [];
+    const { from, to } = editor.state.selection;
+    const ids = new Set<string>();
+    editor.state.doc.nodesBetween(from, to, (node) => {
+      if (node.type.name === "paragraph") {
+        const id = node.attrs.alfredId;
+        if (typeof id === "string" && id.length > 0) ids.add(id);
+        return false; // don't descend into paragraph children
+      }
+      return true;
+    });
+    return [...ids];
+  };
+
+  const handle: EditorHandle = { getDocument, setDocument, loadMarkdown, focus, getSelectedParagraphIds };
+
+  useImperativeHandle(ref, () => handle, [editor]);
 
   useEffect(() => {
     if (editor && onReady) {
-      onReady({ getDocument, setDocument, loadMarkdown, focus });
+      onReady(handle);
     }
   }, [editor]);
 
