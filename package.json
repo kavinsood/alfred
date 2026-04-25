@@ -1,0 +1,16 @@
+{
+  "name": "alfred",
+  "private": true,
+  "version": "0.1.0",
+  "description": "Inverse-whitewashing writing environment. Anthropic Opus 4.7 hackathon.",
+  "scripts": {
+    "dev": "concurrently -n be,fe -c blue,green \"npm:dev:backend\" \"npm:dev:frontend\"",
+    "dev:frontend": "npm --prefix frontend run dev",
+    "dev:backend": "npm --prefix backend run dev",
+    "build": "npm --prefix frontend run build && npm --prefix backend run build",
+    "install:all": "npm install && npm --prefix frontend install && npm --prefix backend install"
+  },
+  "devDependencies": {
+    "concurrently": "^9.0.1"
+  }
+}

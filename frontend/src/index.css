@@ -1,0 +1,122 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+:root {
+  color-scheme: light;
+  font-feature-settings: "ss01", "ss02", "cv11";
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+html, body, #root {
+  height: 100%;
+}
+
+body {
+  background: #FAF7F2;
+  color: #1a1a1a;
+  font-family: "Iowan Old Style", "Charter", "Source Serif Pro", Georgia, serif;
+  font-size: 19px;
+  line-height: 1.65;
+}
+
+/* Editor surface */
+.alfred-prose {
+  font-family: "Iowan Old Style", "Charter", "Source Serif Pro", Georgia, serif;
+  font-size: 19px;
+  line-height: 1.65;
+  color: #1a1a1a;
+  caret-color: #1a1a1a;
+}
+
+.alfred-prose p {
+  margin: 0 0 1.1em 0;
+}
+
+.alfred-prose .ProseMirror {
+  outline: none;
+  min-height: 70vh;
+}
+
+.alfred-prose .ProseMirror p.is-editor-empty:first-child::before {
+  content: attr(data-placeholder);
+  float: left;
+  color: #b8b1a0;
+  pointer-events: none;
+  height: 0;
+  font-style: italic;
+}
+
+/* Diff overlay marks */
+.alfred-prose .diff-glue {
+  color: #4a7c4a;
+  background: rgba(74, 124, 74, 0.10);
+  border-bottom: 1px solid rgba(74, 124, 74, 0.45);
+  padding: 0 1px;
+}
+
+.alfred-prose .diff-removed {
+  color: #9b2c2c;
+  text-decoration: line-through;
+  text-decoration-color: rgba(155, 44, 44, 0.6);
+  background: rgba(155, 44, 44, 0.06);
+}
+
+.alfred-prose .diff-moved-source {
+  opacity: 0.45;
+  background: rgba(155, 44, 44, 0.04);
+  border-left: 2px solid rgba(155, 44, 44, 0.4);
+  padding-left: 12px;
+}
+
+.alfred-prose .diff-moved-target {
+  background: rgba(74, 124, 74, 0.06);
+  border-left: 2px solid rgba(74, 124, 74, 0.6);
+  padding-left: 12px;
+}
+
+.alfred-prose .diff-migrate-old {
+  text-decoration: line-through;
+  text-decoration-color: rgba(155, 44, 44, 0.5);
+  color: #9b2c2c;
+  display: block;
+  margin-bottom: 6px;
+}
+
+.alfred-prose .diff-migrate-new {
+  font-style: italic;
+  color: #2d5a2d;
+}
+
+.alfred-prose .diff-deleted {
+  text-decoration: line-through;
+  color: rgba(155, 44, 44, 0.7);
+  background: rgba(155, 44, 44, 0.04);
+}
+
+/* role corner-tags (tiny) */
+.role-tag {
+  font-family: "Inter", system-ui, sans-serif;
+  font-size: 10px;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: #b8b1a0;
+  margin-bottom: 4px;
+  display: block;
+}
+
+/* command palette */
+.alfred-cmdk-backdrop {
+  background: rgba(20, 18, 14, 0.18);
+  backdrop-filter: blur(2px);
+}
+
+/* panopticon */
+.alfred-panel-divider {
+  border-top: 1px solid #e7e1d4;
+}
+
+/* Hide scrollbar styling for the editor */
+.alfred-prose::-webkit-scrollbar { width: 10px; }
+.alfred-prose::-webkit-scrollbar-thumb { background: #e7e1d4; border-radius: 4px; }
