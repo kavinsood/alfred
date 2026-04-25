@@ -278,16 +278,38 @@ function parseOperator(name: string, input: Record<string, unknown>): Operator |
 }
 
 function parsePosition(raw: unknown): Position {
-  const v = raw as Record<string, unknown>;
-  if (!v || typeof v !== "object") {
-    throw new Error("invalid target_position");
+  if (!raw || typeof raw !== "object") {
+    // eslint-disable-next-line no-console
+    console.warn("[alfred] target_position missing/non-object, defaulting to end:", raw);
+    return { kind: "at", where: "end" };
   }
-  if (v.kind === "after") {
-    return { kind: "after", paragraph_id: String(v.paragraph_id) };
+  const v = raw as Record<string, unknown>;
+
+  // happy path
+  if (v.kind === "after" && typeof v.paragraph_id === "string" && v.paragraph_id.length > 0) {
+    return { kind: "after", paragraph_id: v.paragraph_id };
   }
   if (v.kind === "at") {
     const where = v.where === "start" ? "start" : "end";
     return { kind: "at", where };
   }
-  throw new Error(`invalid target_position kind: ${String(v.kind)}`);
+
+  // forgiving variants — sometimes the model emits "before"/"start"/"end" or omits 'kind'
+  if (v.kind === "before" && typeof v.paragraph_id === "string" && v.paragraph_id.length > 0) {
+    // there is no 'before' op in our algebra; the closest semantically is 'at start' if no anchor,
+    // or we coerce to 'after' the previous; for now, place it at start so the structure is preserved
+    // eslint-disable-next-line no-console
+    console.warn("[alfred] target_position kind=before coerced to at:start");
+    return { kind: "at", where: "start" };
+  }
+  if (typeof v.paragraph_id === "string" && v.paragraph_id.length > 0) {
+    return { kind: "after", paragraph_id: v.paragraph_id };
+  }
+  if (v.where === "start" || v.where === "end") {
+    return { kind: "at", where: v.where as "start" | "end" };
+  }
+
+  // eslint-disable-next-line no-console
+  console.warn("[alfred] unknown target_position shape, defaulting to end:", v);
+  return { kind: "at", where: "end" };
 }
