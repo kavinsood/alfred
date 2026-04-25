@@ -66,6 +66,15 @@ app.use((err: unknown, _req: express.Request, res: express.Response, _next: expr
 
 const port = Number(process.env.PORT ?? 3001);
 app.listen(port, () => {
-  // eslint-disable-next-line no-console
+  /* eslint-disable no-console */
   console.log(`[alfred] listening on http://localhost:${port}`);
+  console.log(`[alfred] model: claude-opus-4-7`);
+  if (!process.env.ANTHROPIC_API_KEY) {
+    console.warn("[alfred] ⚠  ANTHROPIC_API_KEY is not set — propose/inspect calls will fail. Set it in your shell or in backend/.env");
+  } else {
+    const k = process.env.ANTHROPIC_API_KEY;
+    console.log(`[alfred] api key: ${k.slice(0, 7)}…${k.slice(-4)} (length ${k.length})`);
+  }
+  console.log(`[alfred] data home: ${process.env.ALFRED_HOME ?? "~/.alfred"}`);
+  /* eslint-enable no-console */
 });

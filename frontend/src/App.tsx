@@ -14,7 +14,7 @@ import { DiffOverlay } from "@/components/DiffOverlay";
 import { Panopticon } from "@/components/Panopticon";
 import { StatusBar } from "@/components/StatusBar";
 import { useSession } from "@/store/session";
-import { decide, inspect, propose } from "@/lib/api";
+import { decide, getHealth, inspect, propose } from "@/lib/api";
 import { applyOperators } from "@/lib/operators";
 import type { AlfredDocument } from "@/lib/types";
 
@@ -25,6 +25,7 @@ export function App() {
   const [recentIntents, setRecentIntents] = useState<string[]>([]);
   const [originalAtPropose, setOriginalAtPropose] = useState<AlfredDocument | null>(null);
   const [intentAtPropose, setIntentAtPropose] = useState<string>("");
+  const [backendOnline, setBackendOnline] = useState<boolean | null>(null);
 
   const {
     sessionId,
@@ -37,6 +38,25 @@ export function App() {
     togglePanopticon,
     pushDecision,
   } = useSession();
+
+  // backend health check on mount, then periodic re-check while offline
+  useEffect(() => {
+    let alive = true;
+    const ping = async () => {
+      const h = await getHealth();
+      if (!alive) return;
+      setBackendOnline(h.ok);
+    };
+    void ping();
+    const id = setInterval(() => {
+      if (!alive) return;
+      if (backendOnline === false) void ping();
+    }, 5000);
+    return () => {
+      alive = false;
+      clearInterval(id);
+    };
+  }, [backendOnline]);
 
   // global hotkeys
   useEffect(() => {
@@ -242,6 +262,7 @@ export function App() {
   return (
     <div className="min-h-screen bg-paper text-ink">
       <Header onLoadDemo={loadDemo} onOpenPanopticon={togglePanopticon} onInspect={runInspect} />
+      {backendOnline === false && <BackendOfflineBanner />}
 
       <main
         style={{
@@ -272,6 +293,18 @@ export function App() {
 
       {panopticonOpen && <Panopticon onClose={togglePanopticon} />}
       <StatusBar />
+    </div>
+  );
+}
+
+function BackendOfflineBanner() {
+  return (
+    <div className="bg-accent/10 border-b border-accent/30 text-accent font-sans text-[12px] py-2 px-6 text-center">
+      <span className="font-medium">Alfred backend is offline.</span> Run{" "}
+      <code className="bg-accent/10 px-1 py-0.5 rounded text-[11px]">npm run dev:backend</code> in another terminal, then refresh.
+      The backend serves <code className="bg-accent/10 px-1 py-0.5 rounded text-[11px]">claude-opus-4-7</code> on{" "}
+      <code className="bg-accent/10 px-1 py-0.5 rounded text-[11px]">localhost:3001</code>; check that
+      <code className="bg-accent/10 px-1 py-0.5 rounded text-[11px] ml-1">ANTHROPIC_API_KEY</code> is set.
     </div>
   );
 }

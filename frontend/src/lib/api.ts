@@ -9,6 +9,22 @@ import type {
   VoiceProfile,
 } from "./types";
 
+export type HealthInfo = {
+  ok: boolean;
+  service?: string;
+  model?: string;
+};
+
+export async function getHealth(): Promise<HealthInfo> {
+  try {
+    const res = await fetch("/api/health");
+    if (!res.ok) return { ok: false };
+    return (await res.json()) as HealthInfo;
+  } catch {
+    return { ok: false };
+  }
+}
+
 async function postJson<T>(url: string, body: unknown): Promise<T> {
   const res = await fetch(url, {
     method: "POST",
