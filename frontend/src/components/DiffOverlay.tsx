@@ -72,10 +72,12 @@ function DiffHeader({ proposal }: { proposal: Proposal }) {
   return (
     <div className="font-sans text-[13px] mb-8 pb-4 border-b border-rule">
       <div className="text-[11px] uppercase tracking-widest text-muted mb-2">
-        Alfred proposes — Tab to accept, Esc to reject
+        Alfred proposes
       </div>
-      <div className="text-ink leading-relaxed">{proposal.alfred_says}</div>
-      <div className="mt-3 text-muted italic text-[12px]">
+      <div className="text-ink text-[16px] leading-snug font-serif italic">
+        {proposal.alfred_says}
+      </div>
+      <div className="mt-2 text-muted text-[12px]">
         {proposal.rationale}
       </div>
       <div className="mt-3 flex flex-wrap gap-2">

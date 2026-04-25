@@ -14,6 +14,7 @@ export function App() {
   const [paletteOpen, setPaletteOpen] = useState(false);
   const [recentIntents, setRecentIntents] = useState<string[]>([]);
   const [originalAtPropose, setOriginalAtPropose] = useState<AlfredDocument | null>(null);
+  const [intentAtPropose, setIntentAtPropose] = useState<string>("");
 
   const {
     sessionId,
@@ -95,6 +96,7 @@ export function App() {
       if (!editorRef.current) return;
       const doc = editorRef.current.getDocument();
       setOriginalAtPropose(doc);
+      setIntentAtPropose(intent);
       setRecentIntents((prev) => [intent, ...prev.filter((p) => p !== intent)].slice(0, 6));
       setPaletteOpen(false);
       setStatus("thinking", "running operator algebra");
@@ -126,7 +128,7 @@ export function App() {
     editorRef.current.setDocument(next);
     pushDecision({
       ts: new Date().toISOString(),
-      intent: useSession.getState().alfredSays.length > 0 ? useSession.getState().alfredSays : "—",
+      intent: intentAtPropose || "—",
       decision: "accept",
       rationale: pendingProposal.rationale,
       operator_kinds: pendingProposal.operators.map((o) => o.kind),
@@ -150,7 +152,7 @@ export function App() {
       if (!pendingProposal) return;
       pushDecision({
         ts: new Date().toISOString(),
-        intent: useSession.getState().alfredSays.length > 0 ? useSession.getState().alfredSays : "—",
+        intent: intentAtPropose || "—",
         decision: "reject",
         rationale: pendingProposal.rationale,
         operator_kinds: pendingProposal.operators.map((o) => o.kind),
@@ -174,7 +176,7 @@ export function App() {
 
   return (
     <div className="min-h-screen bg-paper text-ink">
-      <Header onLoadDemo={loadDemo} onOpenPanopticon={togglePanopticon} />
+      <Header onLoadDemo={loadDemo} onOpenPanopticon={togglePanopticon} onInspect={runInspect} />
 
       <main
         style={{
@@ -182,15 +184,16 @@ export function App() {
           transition: "padding-right 220ms ease",
         }}
       >
-        {pendingProposal && originalAtPropose ? (
+        <div style={{ display: pendingProposal ? "none" : "block" }}>
+          <Editor onReady={(h) => (editorRef.current = h)} diffMode={Boolean(pendingProposal)} />
+        </div>
+        {pendingProposal && originalAtPropose && (
           <DiffOverlay
             originalDoc={originalAtPropose}
             proposal={pendingProposal}
             onAccept={onAccept}
             onReject={onReject}
           />
-        ) : (
-          <Editor onReady={(h) => (editorRef.current = h)} diffMode={false} />
         )}
       </main>
 
@@ -210,14 +213,21 @@ export function App() {
 function Header({
   onLoadDemo,
   onOpenPanopticon,
+  onInspect,
 }: {
   onLoadDemo: (which: "draft-1" | "draft-2") => void;
   onOpenPanopticon: () => void;
+  onInspect: () => void;
 }) {
   return (
     <header className="sticky top-0 z-20 backdrop-blur bg-paper/85 border-b border-rule">
       <div className="max-w-prose mx-auto px-12 py-3 flex items-center justify-between font-sans text-[12px] text-muted">
-        <span className="tracking-[0.3em] uppercase text-[10px]">Alfred</span>
+        <div className="flex items-baseline gap-3">
+          <span className="tracking-[0.3em] uppercase text-[10px] text-ink/80">Alfred</span>
+          <span className="text-[11px] italic opacity-70 hidden sm:inline">
+            inverse-whitewashing · structure-only · voice preserved by construction
+          </span>
+        </div>
         <nav className="flex items-center gap-3">
           <button
             onClick={() => onLoadDemo("draft-1")}
@@ -235,14 +245,21 @@ function Header({
           </button>
           <span className="text-rule">·</span>
           <button
+            onClick={onInspect}
+            className="hover:text-ink transition-colors"
+            title="Cmd+I — let Alfred read the document"
+          >
+            inspect
+          </button>
+          <button
             onClick={onOpenPanopticon}
             className="hover:text-ink transition-colors"
-            title="Cmd+."
+            title="Cmd+. — Panopticon"
           >
             panopticon
           </button>
           <span className="text-rule">·</span>
-          <span className="text-[10px] uppercase tracking-widest opacity-60">cmd+k</span>
+          <kbd className="text-[10px] uppercase tracking-widest opacity-60 bg-chrome px-1.5 py-0.5 rounded">cmd+k</kbd>
         </nav>
       </div>
     </header>

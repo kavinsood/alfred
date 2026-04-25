@@ -33,7 +33,8 @@ export const Editor = forwardRef<EditorHandle, Props>(function Editor({ onReady,
       }),
       AlfredParagraph,
       Placeholder.configure({
-        placeholder: "Start writing. Cmd+K when you want Alfred.",
+        placeholder:
+          "Start writing. Or paste a draft. Press Cmd+K to invoke Alfred — say things like “graf 3 drags” or “buried thesis — find it”.",
       }),
     ],
     editorProps: {
