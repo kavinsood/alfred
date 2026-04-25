@@ -46,7 +46,7 @@ export function DiffOverlay({ originalDoc, proposal, onAccept, onReject }: Props
 
   return (
     <div className="alfred-prose px-12 py-16 max-w-prose mx-auto">
-      <DiffHeader proposal={proposal} />
+      <DiffHeader proposal={proposal} idLabel={annotations.idLabel} />
 
       {originalDoc.paragraphs.map((p) => {
         const ann = annotations.get(p.id) ?? { kind: "intact" as const };
@@ -68,7 +68,7 @@ export function DiffOverlay({ originalDoc, proposal, onAccept, onReject }: Props
   );
 }
 
-function DiffHeader({ proposal }: { proposal: Proposal }) {
+function DiffHeader({ proposal, idLabel }: { proposal: Proposal; idLabel: Map<string, string> }) {
   return (
     <div className="font-sans text-[13px] mb-8 pb-4 border-b border-rule">
       <div className="text-[11px] uppercase tracking-widest text-muted mb-2">
@@ -86,7 +86,7 @@ function DiffHeader({ proposal }: { proposal: Proposal }) {
             key={i}
             className="inline-block text-[11px] uppercase tracking-wider rounded px-2 py-0.5 bg-chrome text-muted"
           >
-            {describeOperator(op)}
+            {describeOperator(op, idLabel)}
           </span>
         ))}
         {proposal.operators.length === 0 && (

@@ -114,30 +114,35 @@ export function randomId(): string {
   return Date.now().toString(36) + "-" + Math.random().toString(36).slice(2, 10);
 }
 
-export function describeOperator(op: Operator): string {
+export function describeOperator(op: Operator, idLabel?: Map<string, string>): string {
+  const label = (id: string) =>
+    idLabel?.get(id) ?? `${id.slice(0, 4)}…`;
   switch (op.kind) {
     case "split":
-      return `split paragraph after sentence ${op.after_sentence_index + 1}`;
+      return `split after sentence ${op.after_sentence_index + 1}`;
     case "merge":
       return op.glue_text && op.glue_text.trim()
-        ? `merge two paragraphs (glue: "${op.glue_text.trim()}")`
-        : "merge two paragraphs";
+        ? `merge ${label(op.first_paragraph_id)} + ${label(op.second_paragraph_id)} (glue ${op.glue_text.trim().split(/\s+/).length}t)`
+        : `merge ${label(op.first_paragraph_id)} + ${label(op.second_paragraph_id)}`;
     case "move":
-      return `move paragraph ${describePosition(op.target_position)}`;
+      return `move ${label(op.paragraph_id)} ${describePosition(op.target_position, idLabel)}`;
     case "hoist":
-      return `hoist as ${op.target_role}`;
+      return `hoist ${label(op.paragraph_id)} as ${op.target_role}`;
     case "demote":
-      return `demote under parent`;
+      return `demote ${label(op.paragraph_id)}`;
     case "migrate":
-      return `migrate (~${op.change_budget_tokens} token rewrite)`;
+      return `migrate ${label(op.paragraph_id)} (~${op.change_budget_tokens}t)`;
     case "glue":
       return `glue: "${op.text}"`;
     case "delete":
-      return `delete paragraph`;
+      return `delete ${label(op.paragraph_id)}`;
   }
 }
 
-function describePosition(p: Position): string {
-  if (p.kind === "after") return `after ${p.paragraph_id.slice(0, 6)}…`;
-  return `at ${p.where}`;
+function describePosition(p: Position, idLabel?: Map<string, string>): string {
+  if (p.kind === "after") {
+    const target = idLabel?.get(p.paragraph_id) ?? `${p.paragraph_id.slice(0, 4)}…`;
+    return `→ after ${target}`;
+  }
+  return p.where === "start" ? "→ to top" : "→ to end";
 }
