@@ -26,10 +26,38 @@ import { buildHoardedContext, getOrCreateSession, recordProposal } from "./sessi
 const MODEL = "claude-opus-4-7";
 const MAX_TOKENS = 4096;
 const MAX_RETRIES = 2;
+const NETWORK_RETRIES = 3;
+const NETWORK_RETRY_BASE_MS = 800;
 
 const client = new Anthropic({
   apiKey: process.env.ANTHROPIC_API_KEY,
+  // SDK handles its own retries on 429/5xx by default (maxRetries: 2). We add
+  // an outer retry below that catches network-level resets (ECONNRESET, etc.)
+  // which the SDK sometimes propagates as APIConnectionError.
+  maxRetries: 2,
+  timeout: 120_000,
 });
+
+async function withNetworkRetry<T>(fn: () => Promise<T>, label: string): Promise<T> {
+  let lastErr: unknown;
+  for (let attempt = 0; attempt < NETWORK_RETRIES; attempt++) {
+    try {
+      return await fn();
+    } catch (err) {
+      lastErr = err;
+      const msg = err instanceof Error ? err.message : String(err);
+      const isNetwork =
+        /econnreset|socket hang up|network|connection|fetch failed|tls/i.test(msg) ||
+        (err as { name?: string })?.name === "APIConnectionError";
+      if (!isNetwork || attempt === NETWORK_RETRIES - 1) throw err;
+      const delay = NETWORK_RETRY_BASE_MS * 2 ** attempt;
+      // eslint-disable-next-line no-console
+      console.warn(`[alfred] ${label} network error (attempt ${attempt + 1}/${NETWORK_RETRIES}): ${msg.slice(0, 120)} — retrying in ${delay}ms`);
+      await new Promise((r) => setTimeout(r, delay));
+    }
+  }
+  throw lastErr;
+}
 
 export async function handlePropose(req: ProposeRequest): Promise<ProposeResponse> {
   if (!req.document || !Array.isArray(req.document.paragraphs)) {
@@ -80,20 +108,24 @@ export async function handlePropose(req: ProposeRequest): Promise<ProposeRespons
       });
     }
 
-    const response = await client.messages.create(
-      {
-        model: MODEL,
-        max_tokens: MAX_TOKENS,
-        // SDK 0.32.1's TextBlockParam doesn't list cache_control, but the API accepts it
-        // on every recent Anthropic model. Cast and ship.
-        system: system as unknown as Anthropic.TextBlockParam[],
-        tools: TOOL_DEFS as unknown as Anthropic.Tool[],
-        tool_choice: { type: "any" },
-        messages,
-      },
-      {
-        headers: { "anthropic-beta": "prompt-caching-2024-07-31" },
-      }
+    const response = await withNetworkRetry(
+      () =>
+        client.messages.create(
+          {
+            model: MODEL,
+            max_tokens: MAX_TOKENS,
+            // SDK 0.32.1's TextBlockParam doesn't list cache_control, but the API accepts it
+            // on every recent Anthropic model. Cast and ship.
+            system: system as unknown as Anthropic.TextBlockParam[],
+            tools: TOOL_DEFS as unknown as Anthropic.Tool[],
+            tool_choice: { type: "any" },
+            messages,
+          },
+          {
+            headers: { "anthropic-beta": "prompt-caching-2024-07-31" },
+          }
+        ),
+      "messages.create"
     );
 
     // Always log usage so we can see cache hits during the demo.
