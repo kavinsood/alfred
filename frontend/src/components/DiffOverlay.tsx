@@ -1,4 +1,4 @@
-import { useEffect, useMemo } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { applyOperators, describeOperator, splitSentences } from "@/lib/operators";
 import type { AlfredDocument, Operator, Paragraph, Proposal } from "@/lib/types";
 
@@ -28,6 +28,11 @@ export function DiffOverlay({ originalDoc, proposal, onAccept, onReject, onAlter
     () => buildAnnotations(originalDoc, proposal.operators),
     [originalDoc, proposal]
   );
+  const projectedDoc = useMemo(
+    () => applyOperators(originalDoc, proposal.operators),
+    [originalDoc, proposal]
+  );
+  const [showProjected, setShowProjected] = useState(false);
 
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
@@ -45,6 +50,12 @@ export function DiffOverlay({ originalDoc, proposal, onAccept, onReject, onAlter
       if ((e.metaKey || e.ctrlKey) && e.shiftKey && (e.key === "k" || e.key === "K")) {
         e.preventDefault();
         onAlternative();
+        return;
+      }
+      // P toggles the projected-document preview (only when no modifier is held)
+      if ((e.key === "p" || e.key === "P") && !e.metaKey && !e.ctrlKey && !e.altKey) {
+        e.preventDefault();
+        setShowProjected((v) => !v);
       }
     };
     window.addEventListener("keydown", onKey);
@@ -53,33 +64,62 @@ export function DiffOverlay({ originalDoc, proposal, onAccept, onReject, onAlter
 
   return (
     <div className="alfred-prose px-12 py-16 max-w-prose mx-auto">
-      <DiffHeader proposal={proposal} idLabel={annotations.idLabel} />
+      <DiffHeader
+        proposal={proposal}
+        idLabel={annotations.idLabel}
+        showProjected={showProjected}
+        onToggleProjected={() => setShowProjected((v) => !v)}
+      />
 
-      {originalDoc.paragraphs.map((p) => {
-        const ann = annotations.get(p.id) ?? { kind: "intact" as const };
-        const glueBefore = annotations.glueAtStart.get(p.id);
-        const glueAfter = annotations.glueAfter.get(p.id);
-        return (
-          <div key={p.id}>
-            {glueBefore ? <GlueLine text={glueBefore} /> : null}
-            <ParagraphView para={p} annotation={ann} idMap={annotations.idLabel} />
-            {glueAfter ? <GlueLine text={glueAfter} /> : null}
-          </div>
-        );
-      })}
-
-      {annotations.glueAtEnd ? <GlueLine text={annotations.glueAtEnd} /> : null}
+      {showProjected ? (
+        <ProjectedView doc={projectedDoc} />
+      ) : (
+        <>
+          {originalDoc.paragraphs.map((p) => {
+            const ann = annotations.get(p.id) ?? { kind: "intact" as const };
+            const glueBefore = annotations.glueAtStart.get(p.id);
+            const glueAfter = annotations.glueAfter.get(p.id);
+            return (
+              <div key={p.id}>
+                {glueBefore ? <GlueLine text={glueBefore} /> : null}
+                <ParagraphView para={p} annotation={ann} idMap={annotations.idLabel} />
+                {glueAfter ? <GlueLine text={glueAfter} /> : null}
+              </div>
+            );
+          })}
+          {annotations.glueAtEnd ? <GlueLine text={annotations.glueAtEnd} /> : null}
+        </>
+      )}
 
       <DiffFooter onAccept={onAccept} onReject={() => onReject()} onAlternative={onAlternative} />
     </div>
   );
 }
 
-function DiffHeader({ proposal, idLabel }: { proposal: Proposal; idLabel: Map<string, string> }) {
+function DiffHeader({
+  proposal,
+  idLabel,
+  showProjected,
+  onToggleProjected,
+}: {
+  proposal: Proposal;
+  idLabel: Map<string, string>;
+  showProjected: boolean;
+  onToggleProjected: () => void;
+}) {
   return (
     <div className="font-sans text-[13px] mb-8 pb-4 border-b border-rule">
-      <div className="text-[11px] uppercase tracking-widest text-muted mb-2">
-        Alfred proposes
+      <div className="flex items-center justify-between mb-2">
+        <div className="text-[11px] uppercase tracking-widest text-muted">
+          Alfred proposes {showProjected && "— previewing projected document"}
+        </div>
+        <button
+          onClick={onToggleProjected}
+          className="text-[11px] uppercase tracking-widest text-muted hover:text-ink transition-colors"
+          title="Toggle preview (P)"
+        >
+          {showProjected ? "show diff" : "preview"} <kbd className="ml-1 px-1.5 py-0.5 rounded bg-chrome text-ink text-[10px]">P</kbd>
+        </button>
       </div>
       <div className="text-ink text-[16px] leading-snug font-serif italic">
         {proposal.alfred_says}
@@ -128,7 +168,8 @@ function DiffFooter({
       <span>
         <kbd className="px-1.5 py-0.5 rounded bg-chrome text-ink">Tab</kbd> accept ·{" "}
         <kbd className="px-1.5 py-0.5 rounded bg-chrome text-ink">Esc</kbd> reject ·{" "}
-        <kbd className="px-1.5 py-0.5 rounded bg-chrome text-ink">⇧⌘K</kbd> alternative
+        <kbd className="px-1.5 py-0.5 rounded bg-chrome text-ink">⇧⌘K</kbd> alternative ·{" "}
+        <kbd className="px-1.5 py-0.5 rounded bg-chrome text-ink">P</kbd> preview
       </span>
       <span className="space-x-3">
         <button onClick={onAlternative} className="px-3 py-1.5 rounded text-ink/70 hover:text-ink">
@@ -225,6 +266,22 @@ function ParagraphView({
     );
   }
   return <p>{para.text}</p>;
+}
+
+function ProjectedView({ doc }: { doc: AlfredDocument }) {
+  return (
+    <>
+      <div className="text-[11px] uppercase tracking-widest text-muted mb-3 italic">
+        Projected — what the document looks like after accept
+      </div>
+      {doc.paragraphs.map((p) => (
+        <p key={p.id}>
+          {p.role && <span className="role-tag">{p.role}</span>}
+          {p.text}
+        </p>
+      ))}
+    </>
+  );
 }
 
 function GlueLine({ text }: { text: string }) {
