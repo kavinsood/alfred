@@ -30,6 +30,24 @@ A side panel — the **Panopticon** — shows you, in real time, what Alfred has
 |---|---|
 | ![After accepting Alfred's proposal](docs/screenshots/05-after-accept.png) | ![Panopticon side panel](docs/screenshots/06-panopticon.png) |
 
+## Hotkeys
+
+- `Cmd+K` — natural-language invocation. *"this graf drags"*, *"unify these into one argument"*, *"buried thesis — find it"*.
+- `Cmd+I` — inspect (Alfred reads the document, reports structure).
+- `Cmd+.` — open/close the Panopticon (writer-profile dashboard).
+- `Tab` / `Esc` — accept / reject the proposed diff.
+- `Cmd+Esc` — cancel an in-flight propose.
+
+**Operator-specific hotkeys** (require text or paragraph selection in the editor):
+
+- `Cmd+S` — split selected graf at sentence boundary
+- `Cmd+M` — merge selected grafs
+- `Cmd+H` — hoist to intro/thesis
+- `Cmd+J` — demote under parent claim
+- `Cmd+B` — move (Alfred picks better position)
+
+Selected paragraph IDs flow into the propose request as `selection.paragraph_ids`; the same Voice Guardian validates the result.
+
 ## Demo flow (90s)
 
 1. Hit the **demo · essay** button. A messy 600-word draft loads.
