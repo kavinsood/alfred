@@ -45,7 +45,7 @@ export const Editor = forwardRef<EditorHandle, Props>(function Editor({ onReady,
       // disable input while diff is showing
       editable: () => !diffMode,
     },
-    content: "",
+    content: { type: "doc", content: [{ type: "paragraph" }] },
   });
 
   const getDocument = () => (editor ? tiptapToDocument(editor) : { paragraphs: [] });

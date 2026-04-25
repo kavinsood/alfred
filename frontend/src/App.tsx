@@ -11,6 +11,7 @@ import type { AlfredDocument } from "@/lib/types";
 
 export function App() {
   const editorRef = useRef<EditorHandle | null>(null);
+  const proposeAbort = useRef<AbortController | null>(null);
   const [paletteOpen, setPaletteOpen] = useState(false);
   const [recentIntents, setRecentIntents] = useState<string[]>([]);
   const [originalAtPropose, setOriginalAtPropose] = useState<AlfredDocument | null>(null);
@@ -49,6 +50,15 @@ export function App() {
         if (status === "diff") return;
         e.preventDefault();
         await runInspect();
+        return;
+      }
+      // global Esc cancels any in-flight propose if no diff is open
+      if (e.key === "Escape" && status === "thinking") {
+        e.preventDefault();
+        proposeAbort.current?.abort();
+        proposeAbort.current = null;
+        setStatus("ready", "cancelled");
+        setTimeout(() => useSession.getState().setStatus("ready"), 1500);
       }
     };
     window.addEventListener("keydown", onKey);
@@ -100,12 +110,15 @@ export function App() {
       setRecentIntents((prev) => [intent, ...prev.filter((p) => p !== intent)].slice(0, 6));
       setPaletteOpen(false);
       setStatus("thinking", "running operator algebra");
+      const controller = new AbortController();
+      proposeAbort.current = controller;
       try {
         const r = await propose({
           document: doc,
           intent,
           session_id: sessionId,
         });
+        if (controller.signal.aborted) return;
         if (r.ok) {
           setProposal(r.proposal);
         } else {
@@ -114,9 +127,12 @@ export function App() {
           setTimeout(() => setStatus("ready"), 2500);
         }
       } catch (err) {
+        if (controller.signal.aborted) return;
         console.error(err);
         setStatus("error", String(err));
         setTimeout(() => setStatus("ready"), 2500);
+      } finally {
+        if (proposeAbort.current === controller) proposeAbort.current = null;
       }
     },
     [sessionId, setProposal, setStatus]
@@ -221,24 +237,24 @@ function Header({
 }) {
   return (
     <header className="sticky top-0 z-20 backdrop-blur bg-paper/85 border-b border-rule">
-      <div className="max-w-prose mx-auto px-12 py-3 flex items-center justify-between font-sans text-[12px] text-muted">
-        <div className="flex items-baseline gap-3">
-          <span className="tracking-[0.3em] uppercase text-[10px] text-ink/80">Alfred</span>
-          <span className="text-[11px] italic opacity-70 hidden sm:inline">
+      <div className="px-6 py-3 flex items-center justify-between font-sans text-[12px] text-muted">
+        <div className="flex items-baseline gap-3 min-w-0">
+          <span className="tracking-[0.3em] uppercase text-[10px] text-ink/80 whitespace-nowrap">Alfred</span>
+          <span className="text-[11px] italic opacity-70 hidden lg:inline whitespace-nowrap truncate">
             inverse-whitewashing · structure-only · voice preserved by construction
           </span>
         </div>
-        <nav className="flex items-center gap-3">
+        <nav className="flex items-center gap-3 whitespace-nowrap">
           <button
             onClick={() => onLoadDemo("draft-1")}
-            className="hover:text-ink transition-colors"
+            className="hover:text-ink transition-colors whitespace-nowrap"
             title="Load demo: messy 600-word essay"
           >
             demo · essay
           </button>
           <button
             onClick={() => onLoadDemo("draft-2")}
-            className="hover:text-ink transition-colors"
+            className="hover:text-ink transition-colors whitespace-nowrap"
             title="Load demo: Skyfall multi-source"
           >
             demo · skyfall
