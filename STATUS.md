@@ -70,7 +70,7 @@ Demo flow works end-to-end. Verified with Playwright. Screenshots in `docs/scree
 ## Known notes / room for v0.2
 
 - **Skyfall latency.** Complex multi-operator proposals (6+ ops including 2 migrates) take 20-30s of Opus thinking time. Acceptable for a writing tool but worth pre-warning the demo audience.
-- **Prompt caching.** Not enabled (would require beta header). Latency is fine without it; it's a cost optimization.
+- **Prompt caching enabled.** Two ephemeral breakpoints (system+profile and document). Verified: warm calls show `cached_read=4096`, cold call `cached_read=0`. ~95% input-token reduction on repeat invocations within the 5-minute cache TTL.
 - **Operator-specific hotkeys** (Cmd+S split, Cmd+M merge, etc.) — not implemented. Cmd+K with NL covers the action space.
 - **Per-user LoRA via Prime Intellect Lab** — Phase 3, README gestures at it. Every accept/reject is already a logged training signal.
 
