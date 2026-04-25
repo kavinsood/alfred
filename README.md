@@ -30,6 +30,10 @@ A side panel — the **Panopticon** — shows you, in real time, what Alfred has
 |---|---|
 | ![After accepting Alfred's proposal](docs/screenshots/05-after-accept.png) | ![Panopticon side panel](docs/screenshots/06-panopticon.png) |
 
+| Voice integrity badge (the architectural claim, made concrete) | Preview-projected (`P` to toggle) |
+|---|---|
+| ![Voice integrity: 4 structural · 0 generative · glue 0/60 tok · pure structural](docs/screenshots/10-voice-integrity-badge.png) | ![Preview of projected document with role tags](docs/screenshots/09-preview-projected.png) |
+
 ## Hotkeys
 
 - `Cmd+K` — natural-language invocation. *"this graf drags"*, *"unify these into one argument"*, *"buried thesis — find it"*.
