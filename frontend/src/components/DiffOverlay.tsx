@@ -7,6 +7,7 @@ type Props = {
   proposal: Proposal;
   onAccept: () => void;
   onReject: (reason?: string) => void;
+  onAlternative: () => void;
 };
 
 // Build a presentation model: for each paragraph we tag what's happening.
@@ -22,7 +23,7 @@ type Annotation =
 
 type InsertedGlue = { afterId: string | null; atStartOfId?: string; text: string };
 
-export function DiffOverlay({ originalDoc, proposal, onAccept, onReject }: Props) {
+export function DiffOverlay({ originalDoc, proposal, onAccept, onReject, onAlternative }: Props) {
   const annotations = useMemo(
     () => buildAnnotations(originalDoc, proposal.operators),
     [originalDoc, proposal]
@@ -38,11 +39,17 @@ export function DiffOverlay({ originalDoc, proposal, onAccept, onReject }: Props
       if (e.key === "Escape") {
         e.preventDefault();
         onReject();
+        return;
+      }
+      // Cmd+Shift+K asks Alfred for an alternative
+      if ((e.metaKey || e.ctrlKey) && e.shiftKey && (e.key === "k" || e.key === "K")) {
+        e.preventDefault();
+        onAlternative();
       }
     };
     window.addEventListener("keydown", onKey);
     return () => window.removeEventListener("keydown", onKey);
-  }, [onAccept, onReject]);
+  }, [onAccept, onReject, onAlternative]);
 
   return (
     <div className="alfred-prose px-12 py-16 max-w-prose mx-auto">
@@ -63,7 +70,7 @@ export function DiffOverlay({ originalDoc, proposal, onAccept, onReject }: Props
 
       {annotations.glueAtEnd ? <GlueLine text={annotations.glueAtEnd} /> : null}
 
-      <DiffFooter onAccept={onAccept} onReject={() => onReject()} />
+      <DiffFooter onAccept={onAccept} onReject={() => onReject()} onAlternative={onAlternative} />
     </div>
   );
 }
@@ -107,24 +114,30 @@ function DiffHeader({ proposal, idLabel }: { proposal: Proposal; idLabel: Map<st
   );
 }
 
-function DiffFooter({ onAccept, onReject }: { onAccept: () => void; onReject: () => void }) {
+function DiffFooter({
+  onAccept,
+  onReject,
+  onAlternative,
+}: {
+  onAccept: () => void;
+  onReject: () => void;
+  onAlternative: () => void;
+}) {
   return (
     <div className="font-sans text-[12px] mt-12 pt-4 border-t border-rule flex items-center justify-between text-muted">
       <span>
-        Press <kbd className="px-1.5 py-0.5 rounded bg-chrome text-ink">Tab</kbd> to accept ·{" "}
-        <kbd className="px-1.5 py-0.5 rounded bg-chrome text-ink">Esc</kbd> to reject
+        <kbd className="px-1.5 py-0.5 rounded bg-chrome text-ink">Tab</kbd> accept ·{" "}
+        <kbd className="px-1.5 py-0.5 rounded bg-chrome text-ink">Esc</kbd> reject ·{" "}
+        <kbd className="px-1.5 py-0.5 rounded bg-chrome text-ink">⇧⌘K</kbd> alternative
       </span>
       <span className="space-x-3">
-        <button
-          onClick={onReject}
-          className="px-3 py-1.5 rounded text-ink/70 hover:text-ink"
-        >
+        <button onClick={onAlternative} className="px-3 py-1.5 rounded text-ink/70 hover:text-ink">
+          Alternative
+        </button>
+        <button onClick={onReject} className="px-3 py-1.5 rounded text-ink/70 hover:text-ink">
           Reject
         </button>
-        <button
-          onClick={onAccept}
-          className="px-4 py-1.5 rounded bg-ink text-paper font-medium"
-        >
+        <button onClick={onAccept} className="px-4 py-1.5 rounded bg-ink text-paper font-medium">
           Accept
         </button>
       </span>

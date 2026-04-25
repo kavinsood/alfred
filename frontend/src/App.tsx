@@ -182,6 +182,36 @@ export function App() {
     setTimeout(() => setStatus("ready"), 1800);
   }, [pendingProposal, originalAtPropose, pushDecision, sessionId, setProposal, setStatus]);
 
+  const onAlternative = useCallback(async () => {
+    if (!pendingProposal) return;
+    const previousIntent = intentAtPropose;
+    pushDecision({
+      ts: new Date().toISOString(),
+      intent: previousIntent || "—",
+      decision: "reject",
+      rationale: pendingProposal.rationale,
+      operator_kinds: pendingProposal.operators.map((o) => o.kind),
+    });
+    try {
+      await decide({
+        session_id: sessionId,
+        proposal_id: pendingProposal.id,
+        decision: "reject",
+        reject_reason: "asked for alternative",
+      });
+    } catch (err) {
+      console.error("decide reject failed", err);
+    }
+    setProposal(null);
+    setStatus("ready", "asking for alternative");
+    // resubmit with same intent + a hint to try a different angle
+    if (previousIntent) {
+      await submitIntent(`${previousIntent} — try a different angle than the previous proposal`);
+    } else {
+      setPaletteOpen(true);
+    }
+  }, [pendingProposal, intentAtPropose, sessionId, pushDecision, setProposal, setStatus]);
+
   const onReject = useCallback(
     async (reason?: string) => {
       if (!pendingProposal) return;
@@ -228,6 +258,7 @@ export function App() {
             proposal={pendingProposal}
             onAccept={onAccept}
             onReject={onReject}
+            onAlternative={onAlternative}
           />
         )}
       </main>

@@ -8,6 +8,8 @@ type SessionState = {
   sessionId: string;
   status: AlfredStatus;
   statusDetail: string;
+  /** ms timestamp when the current status was set; used to show elapsed time during "thinking" */
+  statusStartedAt: number;
   alfredSays: string;
   pendingProposal: Proposal | null;
   panopticonOpen: boolean;
@@ -30,6 +32,7 @@ export const useSession = create<SessionState>((set) => ({
   sessionId: randomId(),
   status: "ready",
   statusDetail: "",
+  statusStartedAt: Date.now(),
   alfredSays: "",
   pendingProposal: null,
   panopticonOpen: false,
@@ -37,7 +40,7 @@ export const useSession = create<SessionState>((set) => ({
   profile: null,
   recentDecisions: [],
   inspectRead: null,
-  setStatus: (status, statusDetail = "") => set({ status, statusDetail }),
+  setStatus: (status, statusDetail = "") => set({ status, statusDetail, statusStartedAt: Date.now() }),
   setProposal: (pendingProposal) =>
     set({
       pendingProposal,
