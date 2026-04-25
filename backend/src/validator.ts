@@ -13,7 +13,7 @@ import { changeFraction, tokenCount, tokenizeLower } from "./tokenize.js";
 
 const GLUE_TOKEN_LIMIT_PER_OP = 15;
 const GLUE_TOKEN_LIMIT_TOTAL = 60;
-const MIGRATE_CHANGE_LIMIT = 0.30;
+const MIGRATE_CHANGE_LIMIT = 0.50;
 
 export type ValidationFailure = {
   ok: false;

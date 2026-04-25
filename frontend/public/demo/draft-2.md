@@ -1,23 +1,23 @@
-[fragment from yesterday's notebook]
+[me — dorm scratch, 3am]
 
-what i'm trying to articulate is that the bottleneck in AI writing is not capability but action-space. the model can write coherently. the question is what we let it do. if we let it generate prose, it regresses to the mean. if we constrain it to topology, the writer keeps every word. the difference is architectural not stylistic.
+bottleneck isn't capability. action-space. let the model write prose, it regresses. constrain it to topology, you keep every word. architectural not stylistic.
 
-[from a Gemini session, Mar 20]
+[from Gemini, foreign voice — formal essayist]
 
-The interesting move is to think of the editor as the RL environment, not just a UI. Every accept/reject is a reward signal. The system prompt is the policy. Over the course of a session, the policy converges on the writer's preferences without ever updating model weights — it accumulates few-shot examples in context. This is in-context reinforcement learning. The state machine is the writer's hands.
+It would be useful to reconceive of the editor as a reinforcement-learning environment, not merely a user interface. Each accept or reject is a reward signal; the system prompt is the policy. Across a session the policy converges on the writer's preferences without weight updates — exemplars accumulate in context. The state machine is the writer's hands.
 
-[scratch paragraph from the dorm]
+[me — coffee shop, lowercase]
 
-I keep coming back to a simple question. Why does AI-assisted writing feel bad? Not the output — the process. Even when the output is fine, the process feels like supervising a confident stranger who keeps inserting their voice into yours. You spend more time pruning than writing. You start to feel like a translator of your own thought into a language the machine understands. The whole point of the tool is gone.
+why does AI-assisted writing feel bad? not the output. the process. supervising a stranger who keeps inserting their voice into yours. more time pruning than writing. translator of your own thought into a language the machine understands. point's gone.
 
-[fragment from the notebook]
+[me — notebook, terse]
 
-three layers: cognition (the writer's intent), structure (the topology of claims), surface (the prose). standard AI writing tools operate on the surface. that's where the regression to mean happens. operate on structure instead. preserve the surface as it was written. you keep the voice for free.
+three layers: cognition (intent), structure (topology), surface (prose). standard tools operate on surface. that's where the regression lives. operate on structure. preserve surface. voice is free.
 
-[from a chat with Claude, last week]
+[from Claude, foreign voice — academic]
 
-The cleanest way to think about this is as a separation of concerns. The writer produces high-frequency information (words, rhythm, idiosyncrasy). The AI handles low-frequency information (where things go, what connects to what, what's redundant). Generative AI inverts this — it produces high-frequency information that's average and accepts the writer's structural input as the ground truth. We want the opposite. The writer's high-frequency is sacred; the AI's structural reasoning is the tool.
+The cleanest articulation is a separation of concerns. The writer produces high-frequency information — lexical choice, rhythm, idiosyncrasy. The model attends to low-frequency information — structural relations between claims, redundancies, sequencing. Generative AI inverts this; it produces averaged high-frequency content and accepts the writer's structural input as ground truth. The proposal is to invert the inversion.
 
-[final paragraph attempt]
+[me — back-of-envelope]
 
-If you accept the premise that the bottleneck is action-space, the implementation falls out almost mechanically. The AI gets a fixed algebra: split, merge, move, hoist, demote, migrate, glue. Each operator is constrained at the schema level. The voice guardian validates every proposal before showing it. The user accepts or rejects. The system learns from the decisions. The architecture is forced by the thesis, not added on top of it.
+if action-space is the bottleneck, implementation falls out: fixed algebra (split, merge, move, hoist, demote, migrate, glue), schema-level constraint, voice guardian validates, user accepts or rejects. architecture forced by thesis. not bolted on.

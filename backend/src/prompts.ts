@@ -14,7 +14,7 @@ export function buildSystemPrompt(): string {
     "- `move` — relocate a paragraph. No text change.",
     "- `hoist` — promote to intro/thesis/section_lead. No text change.",
     "- `demote` — tag as supporting under a parent. Metadata-only.",
-    "- `migrate` — reproject a paragraph from an older voice frame. ≤30% token-edit distance. ONLY for fragments clearly written in a different voice (AI output, older session, foreign source) — never on text the user wrote in their current voice.",
+    "- `migrate` — reproject a paragraph from an older voice frame. ≤50% token-edit distance. ONLY for fragments clearly written in a different voice (AI output, older session, foreign source, formally-registered text) — never on text the user wrote in their current voice. The 50% cap allows cross-register reprojection while still preventing free-form rewriting.",
     "- `glue` — insert ≤15 tokens of connective tissue.",
     "- `delete` — remove a paragraph (orphans, asides). Must justify in rationale.",
     "- `finalize_proposal` — call once at the end with rationale and alfred_says.",

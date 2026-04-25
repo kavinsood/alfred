@@ -297,7 +297,7 @@ function VoiceIntegrityBadge({ proposal }: { proposal: Proposal }) {
       </span>
       {migratePct !== null && (
         <span className="text-muted tabular-nums">
-          migrate Δ{(migratePct * 100).toFixed(0)}% / 30% cap
+          migrate Δ{(migratePct * 100).toFixed(0)}% / 50% cap
         </span>
       )}
       {allStructural && glueTokens === 0 && (

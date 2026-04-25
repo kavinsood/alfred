@@ -25,7 +25,7 @@ import { buildHoardedContext, getOrCreateSession, recordProposal } from "./sessi
 
 const MODEL = "claude-opus-4-7";
 const MAX_TOKENS = 4096;
-const MAX_RETRIES = 1;
+const MAX_RETRIES = 2;
 
 const client = new Anthropic({
   apiKey: process.env.ANTHROPIC_API_KEY,

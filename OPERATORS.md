@@ -47,14 +47,15 @@ Make a claim into supporting material under a parent claim.
 - **Constraint:** No prose change.
 
 ### 6. `migrate`
-Reproject a paragraph from an older voice / coordinate frame into the current voice profile. This is the only operator that can rewrite words, and it must do so within a strict glue budget.
+Reproject a paragraph from an older voice / coordinate frame into the current voice profile. This is the only operator that can rewrite words, and it must do so within a bounded change budget.
 - **Args:**
   - `paragraph_id`: string
   - `rewrite_text`: string (the new version)
-  - `change_budget_tokens`: number (estimated # of tokens changed; max 30% of the paragraph's token count)
+  - `change_budget_tokens`: number (estimated # of tokens changed; max 50% of the paragraph's token count)
 - **Effect:** Replace the paragraph's text with `rewrite_text`.
-- **Constraint:** `change_budget_tokens` ≤ 30% of original token count. Server validates: tokenize both, count unchanged tokens, fail if > 30% changed. Vocabulary and tone must align with `vibe_anchor`. Forbidden tokens must not appear.
-- **Use only when:** the user's `migrate` is invoked on a fragment from a clearly-different coordinate frame (different voice, older session, AI-generated source). Do not migrate paragraphs the user wrote in current voice.
+- **Constraint:** Server-validated: token-level edit distance ≤ 50% of max(old_tokens, new_tokens). Vocabulary and tone must align with `vibe_anchor`. Forbidden tokens must not appear.
+- **Why 50% (not 30%):** Cross-register reprojection (formal essayist → terse lowercase) genuinely needs to change roughly half the words to land in the target voice. 50% still prevents free-form rewriting (the operator can't generate from scratch — it must keep half the source's content) but allows the migrate op to actually work for its intended use case.
+- **Use only when:** the user's `migrate` is invoked on a fragment from a clearly-different coordinate frame (different voice, older session, AI-generated source, formally-registered text). Do not migrate paragraphs the user wrote in their current voice.
 
 ### 7. `glue`
 Insert minimal connective text to bridge two paragraphs after structural moves.
