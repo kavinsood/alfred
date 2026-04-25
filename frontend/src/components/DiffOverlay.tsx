@@ -142,14 +142,7 @@ function DiffHeader({
           </span>
         )}
       </div>
-      {proposal.voice_check.glue_budget_used > 0 && (
-        <div className="mt-2 text-[11px] text-muted">
-          Glue used: {proposal.voice_check.glue_budget_used} tokens
-          {proposal.voice_check.migrate_change_pct !== null
-            ? ` · Migrate change: ${(proposal.voice_check.migrate_change_pct * 100).toFixed(0)}%`
-            : ""}
-        </div>
-      )}
+      <VoiceIntegrityBadge proposal={proposal} />
     </div>
   );
 }
@@ -266,6 +259,52 @@ function ParagraphView({
     );
   }
   return <p>{para.text}</p>;
+}
+
+function VoiceIntegrityBadge({ proposal }: { proposal: Proposal }) {
+  const ops = proposal.operators;
+  const total = ops.length;
+  if (total === 0) return null;
+  const structural = ops.filter((o) =>
+    ["split", "merge", "move", "hoist", "demote", "delete"].includes(o.kind)
+  ).length;
+  const generative = ops.filter((o) => o.kind === "glue" || o.kind === "migrate").length;
+  const glueTokens = proposal.voice_check.glue_budget_used;
+  const migratePct = proposal.voice_check.migrate_change_pct;
+  const allStructural = generative === 0;
+
+  return (
+    <div className="mt-3 flex flex-wrap items-center gap-3 text-[11px] font-sans">
+      <span
+        className={`inline-flex items-center gap-1.5 px-2 py-0.5 rounded-full border ${
+          allStructural
+            ? "border-[#2d5a2d]/40 text-[#2d5a2d] bg-[#2d5a2d]/5"
+            : "border-rule text-muted bg-chrome"
+        }`}
+      >
+        <span
+          className={`inline-block w-1.5 h-1.5 rounded-full ${
+            allStructural ? "bg-[#2d5a2d]" : "bg-amber-500"
+          }`}
+        />
+        Voice integrity
+      </span>
+      <span className="text-muted tabular-nums">
+        {structural} structural · {generative} generative
+      </span>
+      <span className="text-muted tabular-nums">
+        glue {glueTokens}/60 tok
+      </span>
+      {migratePct !== null && (
+        <span className="text-muted tabular-nums">
+          migrate Δ{(migratePct * 100).toFixed(0)}% / 30% cap
+        </span>
+      )}
+      {allStructural && glueTokens === 0 && (
+        <span className="italic text-muted">— pure structural; no AI prose generated</span>
+      )}
+    </div>
+  );
 }
 
 function ProjectedView({ doc }: { doc: AlfredDocument }) {
