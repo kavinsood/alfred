@@ -250,8 +250,38 @@ function LogTab({ entries }: { entries: Array<{ ts: string; intent: string; deci
   if (entries.length === 0) {
     return <div className="px-5 py-6 font-sans text-[13px] text-muted italic">No decisions yet this session.</div>;
   }
+  const accepted = entries.filter((e) => e.decision === "accept").length;
+  const rejected = entries.filter((e) => e.decision === "reject").length;
+  const modified = entries.filter((e) => e.decision === "modify").length;
+  const total = entries.length;
+  const rate = total > 0 ? Math.round((accepted / total) * 100) : 0;
+  const opTotals = entries
+    .flatMap((e) => e.operator_kinds)
+    .reduce<Record<string, number>>((acc, k) => {
+      acc[k] = (acc[k] ?? 0) + 1;
+      return acc;
+    }, {});
+  const opSummary = Object.entries(opTotals)
+    .sort(([, a], [, b]) => b - a)
+    .map(([k, n]) => `${n} ${k}`)
+    .join(" · ");
   return (
     <div className="px-5 py-5 font-sans text-[13px] space-y-3">
+      <div className="bg-chrome rounded p-3 space-y-1">
+        <div className="text-[11px] uppercase tracking-widest text-muted">Session</div>
+        <div className="text-ink leading-snug">
+          <span className="font-medium tabular-nums">{total}</span> proposal{total === 1 ? "" : "s"}
+          {" · "}
+          <span className="text-[#2d5a2d] tabular-nums">{accepted} accept</span>
+          {" · "}
+          <span className="text-accent tabular-nums">{rejected} reject</span>
+          {modified > 0 ? ` · ${modified} modify` : ""}
+          {total > 0 ? ` · ${rate}% accept rate` : ""}
+        </div>
+        {opSummary && (
+          <div className="text-[11px] text-muted">operators: {opSummary}</div>
+        )}
+      </div>
       {entries.slice().reverse().map((e, i) => (
         <div key={i} className="border-b border-rule pb-3 last:border-b-0">
           <div className="flex items-center gap-2 text-[11px] uppercase tracking-widest mb-1">
