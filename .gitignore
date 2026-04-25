@@ -8,3 +8,4 @@ build/
 .vite/
 *.tsbuildinfo
 data/runtime/
+.claude/
