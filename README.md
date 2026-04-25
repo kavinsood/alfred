@@ -16,6 +16,20 @@ The architecture is enforced by a **Voice Guardian** that validates every propos
 
 A side panel — the **Panopticon** — shows you, in real time, what Alfred has learned about how you write. Your voice profile is a flat file you can edit, export, or delete. The model's model of you is yours.
 
+## Screenshots
+
+| Cold open | Loaded draft |
+|---|---|
+| ![Empty editor with placeholder](docs/screenshots/01-empty.png) | ![Demo essay loaded](docs/screenshots/02-essay-loaded.png) |
+
+| Command palette | Alfred's proposal (diff overlay) |
+|---|---|
+| ![Cmd+K palette open](docs/screenshots/03-command-palette.png) | ![Diff overlay with operator chips and inline annotations](docs/screenshots/04-diff-overlay.png) |
+
+| Post-accept (voice unchanged, structure improved) | Panopticon |
+|---|---|
+| ![After accepting Alfred's proposal](docs/screenshots/05-after-accept.png) | ![Panopticon side panel](docs/screenshots/06-panopticon.png) |
+
 ## Demo flow (90s)
 
 1. Hit the **demo · essay** button. A messy 600-word draft loads.
