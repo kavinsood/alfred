@@ -34,12 +34,12 @@ body {
   margin: 0 0 1.1em 0;
 }
 
-.alfred-prose .ProseMirror {
+.alfred-prose {
   outline: none;
   min-height: 70vh;
 }
 
-.alfred-prose .ProseMirror p.is-editor-empty:first-child::before {
+.alfred-prose p.is-editor-empty:first-child::before {
   content: attr(data-placeholder);
   float: left;
   color: #b8b1a0;
