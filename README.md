@@ -73,6 +73,14 @@ npm run dev
 
 Frontend on `http://localhost:5173`, backend on `http://localhost:3001`.
 
+To verify everything is wired correctly, in another terminal:
+
+```bash
+npm run smoke
+```
+
+Walks the full lifecycle (health → propose → decide → inspect → profile) and prints the actual `alfred_says` it received. ~12 seconds round-trip.
+
 ## Architecture
 
 A single Alfred orchestrator runs as a long-lived per-session managed agent. The document, the user's `.proserc`, and the hoarded few-shot buffer (last N accept/reject decisions) all live in Claude's context window — no vector DB, no knowledge graph, no AST parser. The model's KV cache is the database.

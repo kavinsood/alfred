@@ -8,7 +8,8 @@
     "dev:frontend": "npm --prefix frontend run dev",
     "dev:backend": "npm --prefix backend run dev",
     "build": "npm --prefix frontend run build && npm --prefix backend run build",
-    "install:all": "npm install && npm --prefix frontend install && npm --prefix backend install"
+    "install:all": "npm install && npm --prefix frontend install && npm --prefix backend install",
+    "smoke": "node tests/smoke.mjs"
   },
   "devDependencies": {
     "concurrently": "^9.0.1"
