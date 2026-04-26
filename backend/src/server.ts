@@ -2,7 +2,7 @@ import express from "express";
 import cors from "cors";
 import dotenv from "dotenv";
 import { handlePropose } from "./alfred.js";
-import { handleProposeViaAgents } from "./alfred-agents.js";
+import { handleProposeViaAgents, getAgentBootstrap, loadBootstrapEager } from "./alfred-agents.js";
 import { handleDecision, handleGetProfile, handlePutProfile } from "./profile.js";
 import { handleInspect } from "./inspect.js";
 
@@ -15,8 +15,29 @@ const app = express();
 app.use(cors({ origin: "http://localhost:5173" }));
 app.use(express.json({ limit: "1mb" }));
 
-app.get("/api/health", (_req, res) => {
-  res.json({ ok: true, service: "alfred", model: "claude-opus-4-7", mode: ALFRED_MODE });
+app.get("/api/health", async (_req, res) => {
+  const base = {
+    ok: true,
+    service: "alfred",
+    model: "claude-opus-4-7",
+    mode: ALFRED_MODE,
+  };
+  if (ALFRED_MODE === "agents") {
+    try {
+      const boot = (await loadBootstrapEager()) ?? getAgentBootstrap();
+      if (boot) {
+        res.json({
+          ...base,
+          agent_id: boot.agent_id,
+          environment_id: boot.environment_id,
+        });
+        return;
+      }
+    } catch {
+      // fall through to base — health stays green; agent_id field absent indicates "not provisioned yet"
+    }
+  }
+  res.json(base);
 });
 
 app.post("/api/propose", async (req, res, next) => {

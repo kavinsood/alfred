@@ -362,3 +362,16 @@ function parsePosition(raw: unknown): Position {
 export function getAgentBootstrap(): AgentBootstrap | null {
   return bootstrap;
 }
+
+/**
+ * Eager loader for use cases (e.g. /api/health) where we want to surface
+ * agent_id/environment_id even before the first /api/propose call has lazily
+ * loaded them. Returns null if agent.json is missing.
+ */
+export async function loadBootstrapEager(): Promise<AgentBootstrap | null> {
+  try {
+    return await loadBootstrap();
+  } catch {
+    return null;
+  }
+}
