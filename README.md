@@ -12,9 +12,18 @@ Alfred inverts that. Claude is given a **fixed operator algebra** — `split`, `
 
 The result: a tool that helps with structure without touching voice. The author keeps every word.
 
-The architecture is enforced by a **Voice Guardian** that validates every proposal before showing it: glue text is capped at 15 tokens per operator (60 total), forbidden tokens are blocked, and the only operator that may rewrite words (`migrate`, used for reprojecting older fragments into your current voice frame) is capped at 30% token-edit distance.
+The architecture is enforced by a **Voice Guardian** that validates every proposal before showing it: glue text is capped at 15 tokens per operator (60 total), forbidden tokens are blocked, and the only operator that may rewrite words (`migrate`, used for reprojecting older fragments into your current voice frame) is capped at 50% token-edit distance.
 
 A side panel — the **Panopticon** — shows you, in real time, what Alfred has learned about how you write. Your voice profile is a flat file you can edit, export, or delete. The model's model of you is yours.
+
+## Two transports
+
+Alfred ships two interchangeable orchestration backends behind one identical product surface. The thesis (action-space constraint, Voice Guardian, Panopticon transparency) is **transport-independent** — switch by env var, no other code changes, frontend can't tell.
+
+- **Messages API** (default, `ALFRED_MODE=messages`) — `client.messages.create` with `tool_choice: { type: "any" }`, prompt caching via the `prompt-caching-2024-07-31` beta. Lowest friction for local dev.
+- **Managed Agents** (`ALFRED_MODE=agents`, on branch `managed-agents`) — agent definition (system prompt + 9 custom tools) provisioned once via `client.beta.agents.create`; per-document sessions via `client.beta.sessions.create`; per-Cmd+K invocation via `client.beta.sessions.events.stream`. Stateful at Anthropic, persistent across server restarts.
+
+Both transports share the operator algebra, prompts, Voice Guardian, profile manager, and `Proposal` envelope. See `docs/managed-agents.md` (on the `managed-agents` branch) and `MERGE_PLAN.md` for the architecture and procedure.
 
 ## Screenshots
 
