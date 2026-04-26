@@ -41,8 +41,27 @@ async function main() {
     if (!d.ok || d.model !== "claude-opus-4-7") {
       throw new Error(`unexpected health: ${JSON.stringify(d)}`);
     }
+    if (d.mode === "agents") {
+      if (!d.agent_id || !d.environment_id) {
+        throw new Error(`mode=agents but missing agent_id/environment_id — run scripts/setup-agent.mjs`);
+      }
+    }
     return d;
   });
+  console.log(c.dim(`     mode: ${health.mode ?? "messages"}${health.agent_id ? ` · agent ${health.agent_id.slice(0, 18)}…` : ""}`));
+
+  // 1b. agent info — only when mode=agents
+  if (health.mode === "agents") {
+    await step("GET /api/agent/info (round-trip to Anthropic)", async () => {
+      const r = await fetch(`${BASE}/api/agent/info`);
+      if (!r.ok) throw new Error(`status ${r.status}`);
+      const d = await r.json();
+      if (d.name !== "Alfred") throw new Error(`agent.name is "${d.name}", expected "Alfred"`);
+      const toolCount = Array.isArray(d.tools) ? d.tools.length : 0;
+      if (toolCount < 9) throw new Error(`expected ≥9 tools, got ${toolCount}`);
+      return d;
+    });
+  }
 
   // 2. propose
   const sessionId = `smoke-${Date.now()}`;
