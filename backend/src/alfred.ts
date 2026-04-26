@@ -79,15 +79,13 @@ export async function handlePropose(req: ProposeRequest): Promise<ProposeRespons
   // Prompt caching: mark the largest reusable blocks as `ephemeral` cache breakpoints.
   // The system prompt + voice profile block is the biggest reusable chunk (changes only
   // when the user edits .proserc). The document block is reused across rapid invocations
-  // on the same draft. Cache_control is stable on the Anthropic API but lives under beta
-  // types in SDK 0.32.1; we cast for now and ship.
-  type CachedTextBlock = { type: "text"; text: string; cache_control?: { type: "ephemeral" } };
-  const system: CachedTextBlock[] = [
+  // on the same draft. cache_control is in stable types as of SDK 0.91.1.
+  const system: Anthropic.TextBlockParam[] = [
     { type: "text", text: buildSystemPrompt() },
     { type: "text", text: renderProfileBlock(profile), cache_control: { type: "ephemeral" } },
   ];
 
-  const userBlocks: CachedTextBlock[] = [
+  const userBlocks: Anthropic.TextBlockParam[] = [
     { type: "text", text: renderDocumentBlock(req.document), cache_control: { type: "ephemeral" } },
     { type: "text", text: renderHoardedBlock(hoarded) },
     { type: "text", text: renderInvocationBlock(req.intent, req.selection?.paragraph_ids ?? []) },
@@ -110,21 +108,14 @@ export async function handlePropose(req: ProposeRequest): Promise<ProposeRespons
 
     const response = await withNetworkRetry(
       () =>
-        client.messages.create(
-          {
-            model: MODEL,
-            max_tokens: MAX_TOKENS,
-            // SDK 0.32.1's TextBlockParam doesn't list cache_control, but the API accepts it
-            // on every recent Anthropic model. Cast and ship.
-            system: system as unknown as Anthropic.TextBlockParam[],
-            tools: TOOL_DEFS as unknown as Anthropic.Tool[],
-            tool_choice: { type: "any" },
-            messages,
-          },
-          {
-            headers: { "anthropic-beta": "prompt-caching-2024-07-31" },
-          }
-        ),
+        client.messages.create({
+          model: MODEL,
+          max_tokens: MAX_TOKENS,
+          system,
+          tools: TOOL_DEFS as unknown as Anthropic.Tool[],
+          tool_choice: { type: "any" },
+          messages,
+        }),
       "messages.create"
     );
 
