@@ -2,22 +2,29 @@ import express from "express";
 import cors from "cors";
 import dotenv from "dotenv";
 import { handlePropose } from "./alfred.js";
+import { handleProposeViaAgents } from "./alfred-agents.js";
 import { handleDecision, handleGetProfile, handlePutProfile } from "./profile.js";
 import { handleInspect } from "./inspect.js";
 
 dotenv.config();
+
+const ALFRED_MODE: "messages" | "agents" =
+  (process.env.ALFRED_MODE ?? "messages").toLowerCase() === "agents" ? "agents" : "messages";
 
 const app = express();
 app.use(cors({ origin: "http://localhost:5173" }));
 app.use(express.json({ limit: "1mb" }));
 
 app.get("/api/health", (_req, res) => {
-  res.json({ ok: true, service: "alfred", model: "claude-opus-4-7" });
+  res.json({ ok: true, service: "alfred", model: "claude-opus-4-7", mode: ALFRED_MODE });
 });
 
 app.post("/api/propose", async (req, res, next) => {
   try {
-    const out = await handlePropose(req.body);
+    const out =
+      ALFRED_MODE === "agents"
+        ? await handleProposeViaAgents(req.body)
+        : await handlePropose(req.body);
     res.json(out);
   } catch (err) {
     next(err);
@@ -68,6 +75,7 @@ const port = Number(process.env.PORT ?? 3001);
 app.listen(port, () => {
   /* eslint-disable no-console */
   console.log(`[alfred] listening on http://localhost:${port}`);
+  console.log(`[alfred] mode:  ${ALFRED_MODE}`);
   console.log(`[alfred] model: claude-opus-4-7`);
   if (!process.env.ANTHROPIC_API_KEY) {
     console.warn("[alfred] ⚠  ANTHROPIC_API_KEY is not set — propose/inspect calls will fail. Set it in your shell or in backend/.env");
