@@ -126,5 +126,18 @@ app.listen(port, () => {
     console.log(`[alfred] api key: ${k.slice(0, 7)}…${k.slice(-4)} (length ${k.length})`);
   }
   console.log(`[alfred] data home: ${process.env.ALFRED_HOME ?? "~/.alfred"}`);
+  if (ALFRED_MODE === "agents") {
+    void (async () => {
+      const boot = await loadBootstrapEager();
+      if (boot) {
+        console.log(`[alfred] agent:    ${boot.agent_id}`);
+        console.log(`[alfred] env:      ${boot.environment_id}`);
+      } else {
+        console.warn("[alfred] ⚠  ALFRED_MODE=agents but no agent.json found.");
+        console.warn("[alfred] ⚠  Run: node backend/scripts/setup-agent.mjs");
+        console.warn("[alfred] ⚠  /api/propose will fail until you do.");
+      }
+    })();
+  }
   /* eslint-enable no-console */
 });
