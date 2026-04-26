@@ -375,3 +375,51 @@ export async function loadBootstrapEager(): Promise<AgentBootstrap | null> {
     return null;
   }
 }
+
+export type AgentInfo = {
+  agent_id: string;
+  environment_id: string;
+  name: string;
+  description: string | null;
+  version: number;
+  created_at: string;
+  updated_at: string;
+  model: unknown;
+  system_prompt_preview: string;
+  system_prompt_length: number;
+  tools: Array<{ name: string; description: string; type: string }>;
+  active_sessions_in_memory: number;
+};
+
+/**
+ * Round-trips to Anthropic to fetch the live agent definition.
+ * Demonstrates the agent is a real, retrievable Managed Agents resource
+ * (not a local-only ID).
+ */
+export async function getAgentInfo(): Promise<AgentInfo | { ok: false; error: string }> {
+  const boot = await loadBootstrapEager();
+  if (!boot) {
+    return { ok: false, error: "agent.json not found — run scripts/setup-agent.mjs" };
+  }
+  const agent = await client.beta.agents.retrieve(boot.agent_id);
+  const sys = agent.system ?? "";
+  const tools = (agent.tools ?? []) as Array<{ name?: string; description?: string; type?: string }>;
+  return {
+    agent_id: agent.id,
+    environment_id: boot.environment_id,
+    name: agent.name,
+    description: agent.description,
+    version: agent.version,
+    created_at: agent.created_at,
+    updated_at: agent.updated_at,
+    model: agent.model,
+    system_prompt_preview: sys.slice(0, 400) + (sys.length > 400 ? "…" : ""),
+    system_prompt_length: sys.length,
+    tools: tools.map((t) => ({
+      name: t.name ?? "?",
+      description: (t.description ?? "").slice(0, 120),
+      type: t.type ?? "?",
+    })),
+    active_sessions_in_memory: sessionByAlfredSessionId.size,
+  };
+}

@@ -2,7 +2,12 @@ import express from "express";
 import cors from "cors";
 import dotenv from "dotenv";
 import { handlePropose } from "./alfred.js";
-import { handleProposeViaAgents, getAgentBootstrap, loadBootstrapEager } from "./alfred-agents.js";
+import {
+  handleProposeViaAgents,
+  getAgentBootstrap,
+  loadBootstrapEager,
+  getAgentInfo,
+} from "./alfred-agents.js";
 import { handleDecision, handleGetProfile, handlePutProfile } from "./profile.js";
 import { handleInspect } from "./inspect.js";
 
@@ -80,6 +85,22 @@ app.put("/api/profile", async (req, res, next) => {
 app.post("/api/inspect", async (req, res, next) => {
   try {
     res.json(await handleInspect(req.body));
+  } catch (err) {
+    next(err);
+  }
+});
+
+app.get("/api/agent/info", async (_req, res, next) => {
+  try {
+    if (ALFRED_MODE !== "agents") {
+      res.status(404).json({
+        ok: false,
+        error: "agents_mode_only",
+        details: "/api/agent/info is only available when ALFRED_MODE=agents",
+      });
+      return;
+    }
+    res.json(await getAgentInfo());
   } catch (err) {
     next(err);
   }
