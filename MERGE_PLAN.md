@@ -57,6 +57,7 @@ npm run dev
 npm run smoke                                    # Messages mode (default)
 ALFRED_MODE=agents npm run dev:backend &         # in another terminal
 ALFRED_BASE=http://localhost:3001 npm run smoke  # Agents mode (after restart)
+./scripts/verify-managed-agents.sh               # full agent-transport proof in ~15s
 
 # 7. Once happy, drop the worktree
 git worktree remove ../alfred-agents
