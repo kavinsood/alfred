@@ -114,114 +114,151 @@ export async function handleProposeViaAgents(
   // eslint-disable-next-line no-console
   console.log(`[alfred-agents] sending invocation to session ${agentSessionId}`);
 
-  await client.beta.sessions.events.send(agentSessionId, {
-    events: [{ type: "user.message", content: [{ type: "text", text: userText }] }],
-  });
-
-  const stream = await client.beta.sessions.events.stream(agentSessionId);
-
-  const operators: Operator[] = [];
-  let finalize: { rationale: string; alfred_says: string } | null = null;
-  let endTurn = false;
-  const startedAt = Date.now();
-  const HARD_TIMEOUT_MS = 90_000;
-
   type IdleEvt = { stop_reason?: { type: string; event_ids?: string[] } };
   type ToolUseEvt = { id: string; name: string; input: Record<string, unknown> };
 
-  for await (const ev of stream as AsyncIterable<{ type: string } & Record<string, unknown>>) {
-    if (Date.now() - startedAt > HARD_TIMEOUT_MS) {
-      // eslint-disable-next-line no-console
-      console.warn(`[alfred-agents] hard timeout after ${HARD_TIMEOUT_MS}ms`);
-      break;
-    }
+  const MAX_TURNS = 3;
+  let operators: Operator[] = [];
+  let finalize: { rationale: string; alfred_says: string } | null = null;
+  let endTurn = false;
+  let nextUserText: string = userText;
 
-    const t = ev.type;
-    if (t === "agent.custom_tool_use") {
-      const tu = ev as unknown as ToolUseEvt;
-      if (tu.name === "finalize_proposal") {
-        finalize = {
-          rationale: String(tu.input.rationale ?? ""),
-          alfred_says: String(tu.input.alfred_says ?? ""),
-        };
-      } else {
-        const op = parseOperator(tu.name, tu.input);
-        if (op) operators.push(op);
-      }
-    } else if (t === "session.status_idle") {
-      const idle = ev as unknown as IdleEvt;
-      const stop = idle.stop_reason ?? { type: "" };
-      if (stop.type === "end_turn") {
-        endTurn = true;
+  for (let turn = 0; turn < MAX_TURNS; turn++) {
+    operators = [];
+    finalize = null;
+    endTurn = false;
+    const seenToolUseIds: string[] = [];
+    const ackedToolUseIds = new Set<string>();
+
+    await client.beta.sessions.events.send(agentSessionId, {
+      events: [{ type: "user.message", content: [{ type: "text", text: nextUserText }] }],
+    });
+
+    const stream = await client.beta.sessions.events.stream(agentSessionId);
+    const startedAt = Date.now();
+    const HARD_TIMEOUT_MS = 180_000;
+
+    for await (const ev of stream as AsyncIterable<{ type: string } & Record<string, unknown>>) {
+      if (Date.now() - startedAt > HARD_TIMEOUT_MS) {
+        // eslint-disable-next-line no-console
+        console.warn(`[alfred-agents] hard timeout after ${HARD_TIMEOUT_MS}ms`);
         break;
       }
-      if (stop.type === "requires_action") {
-        const ids = stop.event_ids ?? [];
-        if (ids.length > 0) {
-          await client.beta.sessions.events.send(agentSessionId, {
-            events: ids.map((tid: string) => ({
-              type: "user.custom_tool_result" as const,
-              custom_tool_use_id: tid,
-              content: [{ type: "text" as const, text: "applied" }],
-            })),
-          });
+      const t = ev.type;
+      if (t === "agent.custom_tool_use") {
+        const tu = ev as unknown as ToolUseEvt;
+        seenToolUseIds.push(tu.id);
+        if (tu.name === "finalize_proposal") {
+          finalize = {
+            rationale: String(tu.input.rationale ?? ""),
+            alfred_says: String(tu.input.alfred_says ?? ""),
+          };
+        } else {
+          const op = parseOperator(tu.name, tu.input);
+          if (op) operators.push(op);
         }
+      } else if (t === "session.status_idle") {
+        const idle = ev as unknown as IdleEvt;
+        const stop = idle.stop_reason ?? { type: "" };
+        if (stop.type === "end_turn") {
+          endTurn = true;
+          break;
+        }
+        if (stop.type === "requires_action") {
+          const ids = stop.event_ids ?? [];
+          if (ids.length > 0) {
+            await client.beta.sessions.events.send(agentSessionId, {
+              events: ids.map((tid: string) => ({
+                type: "user.custom_tool_result" as const,
+                custom_tool_use_id: tid,
+                content: [{ type: "text" as const, text: "applied" }],
+              })),
+            });
+            for (const id of ids) ackedToolUseIds.add(id);
+          }
+        }
+        if (stop.type === "retries_exhausted") {
+          return { ok: false, error: "model_retries_exhausted" };
+        }
+      } else if (t === "session.error") {
+        // eslint-disable-next-line no-console
+        console.error(`[alfred-agents] session.error:`, JSON.stringify(ev).slice(0, 400));
+        return { ok: false, error: "session_error", details: JSON.stringify(ev).slice(0, 300) };
+      } else if (t === "session.status_terminated") {
+        // eslint-disable-next-line no-console
+        console.warn(`[alfred-agents] session terminated mid-turn`);
+        sessionByAlfredSessionId.delete(req.session_id);
+        return { ok: false, error: "session_terminated" };
       }
-      if (stop.type === "retries_exhausted") {
-        return { ok: false, error: "model_retries_exhausted" };
-      }
-    } else if (t === "session.error") {
-      // eslint-disable-next-line no-console
-      console.error(`[alfred-agents] session.error:`, JSON.stringify(ev).slice(0, 400));
-      return { ok: false, error: "session_error", details: JSON.stringify(ev).slice(0, 300) };
-    } else if (t === "session.status_terminated") {
-      // eslint-disable-next-line no-console
-      console.warn(`[alfred-agents] session terminated mid-turn`);
-      // drop the cached session so the next call recreates one
-      sessionByAlfredSessionId.delete(req.session_id);
-      return { ok: false, error: "session_terminated" };
     }
-  }
 
-  if (!finalize) {
-    // Recover with a synthesized finalize so we still return something usable.
-    if (operators.length === 0) {
-      return {
-        ok: false,
-        error: "no_operators",
-        details: "agent ended turn with no tool calls",
+    // Acknowledge any tool_use events that didn't get acked via requires_action
+    // (sometimes end_turn fires without a final requires_action wave). The
+    // session refuses new user.message events while any tool_use is unacked.
+    const unacked = seenToolUseIds.filter((id) => !ackedToolUseIds.has(id));
+    if (unacked.length > 0) {
+      try {
+        await client.beta.sessions.events.send(agentSessionId, {
+          events: unacked.map((tid) => ({
+            type: "user.custom_tool_result" as const,
+            custom_tool_use_id: tid,
+            content: [{ type: "text" as const, text: "applied" }],
+          })),
+        });
+      } catch (err) {
+        // eslint-disable-next-line no-console
+        console.warn(`[alfred-agents] couldn't ack ${unacked.length} leftover tool_uses:`, err instanceof Error ? err.message : String(err));
+      }
+    }
+
+    if (!finalize) {
+      if (operators.length === 0) {
+        return {
+          ok: false,
+          error: "no_operators",
+          details: "agent ended turn with no tool calls",
+        };
+      }
+      finalize = {
+        rationale: `Proposed: ${operators.map((o) => o.kind).join(", ")}.`,
+        alfred_says: `${operators.length} structural move${operators.length === 1 ? "" : "s"}: ${operators.map((o) => o.kind).join(", ")}.`,
       };
     }
-    finalize = {
-      rationale: `Proposed: ${operators.map((o) => o.kind).join(", ")}.`,
-      alfred_says: `${operators.length} structural move${operators.length === 1 ? "" : "s"}: ${operators.map((o) => o.kind).join(", ")}.`,
-    };
+
+    const validation = validateProposal(req.document, operators, profile);
+    if (validation.ok) {
+      const proposal: Proposal = {
+        id: uuidv4(),
+        rationale: finalize.rationale,
+        alfred_says: finalize.alfred_says,
+        operators,
+        voice_check: validation.voice_check,
+      };
+      recordProposal(req.session_id, req.intent, req.document, proposal);
+      // eslint-disable-next-line no-console
+      console.log(
+        `[alfred-agents] returning proposal: turn ${turn + 1}, ${operators.length} ops, glue ${proposal.voice_check.glue_budget_used}/60, end_turn=${endTurn}`
+      );
+      return { ok: true, proposal };
+    }
+
+    // Validation failed — feed the failure back to the agent in the same session.
+    // eslint-disable-next-line no-console
+    console.warn(`[alfred-agents] turn ${turn + 1} validation failed:`, validation.reasons.join("; "));
+    if (turn === MAX_TURNS - 1) {
+      return {
+        ok: false,
+        error: "validation_failed",
+        details: describeFailureForRetry(validation),
+      };
+    }
+    nextUserText = describeFailureForRetry(validation) +
+      "\n\nRe-emit the operator sequence with the constraints respected. Tighten glue, reduce migrate change-pct (≤50%), drop forbidden tokens, fix invalid paragraph IDs.";
   }
 
-  // Validate against existing Voice Guardian. Same enforcement, regardless of transport.
-  const validation = validateProposal(req.document, operators, profile);
-  if (!validation.ok) {
-    return {
-      ok: false,
-      error: "validation_failed",
-      details: describeFailureForRetry(validation),
-    };
-  }
+  // Should be unreachable.
+  return { ok: false, error: "exhausted_turns" };
 
-  const proposal: Proposal = {
-    id: uuidv4(),
-    rationale: finalize.rationale,
-    alfred_says: finalize.alfred_says,
-    operators,
-    voice_check: validation.voice_check,
-  };
-  recordProposal(req.session_id, req.intent, req.document, proposal);
-
-  // eslint-disable-next-line no-console
-  console.log(
-    `[alfred-agents] returning proposal: ${operators.length} ops, glue ${proposal.voice_check.glue_budget_used}/60, end_turn=${endTurn}`
-  );
-  return { ok: true, proposal };
 }
 
 // --- shared with alfred.ts; kept duplicated here for transport-isolation ---
