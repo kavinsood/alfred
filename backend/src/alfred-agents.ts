@@ -109,7 +109,32 @@ export async function handleProposeViaAgents(
     "IMPORTANT: when you emit operator tool calls, every `paragraph_id`, `first_paragraph_id`, `second_paragraph_id`, `parent_paragraph_id`, and `target_position.paragraph_id` MUST be one of the IDs listed in the `## Document` block above. Do NOT invent new IDs (e.g. `p4b`) referencing paragraphs created by your own earlier operators in this turn — the validator only knows about the input document.",
   ].join("\n\n");
 
-  const agentSessionId = await getOrCreateAgentSession(req.session_id);
+  let agentSessionId = await getOrCreateAgentSession(req.session_id);
+
+  // If the cached session is in a bad state ("waiting on responses to events…"),
+  // drop it and recreate. That state can come from a prior failed turn that left
+  // tool_use events un-acked beyond what we tracked.
+  const trySendUserMessage = async (sid: string, text: string): Promise<string> => {
+    try {
+      await client.beta.sessions.events.send(sid, {
+        events: [{ type: "user.message", content: [{ type: "text", text }] }],
+      });
+      return sid;
+    } catch (err) {
+      const msg = err instanceof Error ? err.message : String(err);
+      if (msg.includes("waiting on responses to events")) {
+        // eslint-disable-next-line no-console
+        console.warn(`[alfred-agents] session ${sid} stuck on un-acked events — dropping and recreating`);
+        sessionByAlfredSessionId.delete(req.session_id);
+        const fresh = await getOrCreateAgentSession(req.session_id);
+        await client.beta.sessions.events.send(fresh, {
+          events: [{ type: "user.message", content: [{ type: "text", text }] }],
+        });
+        return fresh;
+      }
+      throw err;
+    }
+  };
 
   // eslint-disable-next-line no-console
   console.log(`[alfred-agents] sending invocation to session ${agentSessionId}`);
@@ -130,9 +155,7 @@ export async function handleProposeViaAgents(
     const seenToolUseIds: string[] = [];
     const ackedToolUseIds = new Set<string>();
 
-    await client.beta.sessions.events.send(agentSessionId, {
-      events: [{ type: "user.message", content: [{ type: "text", text: nextUserText }] }],
-    });
+    agentSessionId = await trySendUserMessage(agentSessionId, nextUserText);
 
     const stream = await client.beta.sessions.events.stream(agentSessionId);
     const startedAt = Date.now();
