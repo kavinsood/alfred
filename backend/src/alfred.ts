@@ -236,14 +236,34 @@ function recoverFromMissingFinalize(resp: Anthropic.Message): ParsedOk | null {
     if (op) operators.push(op);
   }
   if (operators.length === 0) return null;
-  const opSummary = operators.map((o) => o.kind).join(", ");
+  return { ok: true, operators, finalize: synthesizeFallbackFinalize(operators) };
+}
+
+// Produce a short editorial-ish fallback when the model emits operator calls
+// but skips `finalize_proposal`. Better than "1 structural move: hoist."
+function synthesizeFallbackFinalize(ops: Operator[]): { rationale: string; alfred_says: string } {
+  const counts: Record<string, number> = {};
+  for (const op of ops) counts[op.kind] = (counts[op.kind] ?? 0) + 1;
+  const verb: Record<string, string> = {
+    split: "Splitting",
+    merge: "Merging",
+    move: "Reordering",
+    hoist: "Hoisting",
+    demote: "Demoting",
+    migrate: "Reprojecting from a foreign-voice fragment",
+    glue: "Gluing",
+    delete: "Cutting",
+  };
+  const parts = (Object.keys(counts) as string[])
+    .map((k) => {
+      const n = counts[k]!;
+      const stem = verb[k] ?? `${k}ing`;
+      return n > 1 ? `${stem} (×${n})` : stem;
+    });
+  const says = parts.length === 1 ? `${parts[0]}.` : `${parts.slice(0, -1).join(", ")} and ${parts.at(-1)}.`;
   return {
-    ok: true,
-    operators,
-    finalize: {
-      rationale: `Proposed: ${opSummary}.`,
-      alfred_says: `${operators.length} structural move${operators.length === 1 ? "" : "s"}: ${opSummary}.`,
-    },
+    rationale: `Operators: ${ops.map((o) => o.kind).join(", ")}. (Editorial commentary missing — model skipped finalize_proposal; this proposal still validated against the Voice Guardian.)`,
+    alfred_says: says,
   };
 }
 

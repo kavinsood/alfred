@@ -242,10 +242,7 @@ export async function handleProposeViaAgents(
           details: "agent ended turn with no tool calls",
         };
       }
-      finalize = {
-        rationale: `Proposed: ${operators.map((o) => o.kind).join(", ")}.`,
-        alfred_says: `${operators.length} structural move${operators.length === 1 ? "" : "s"}: ${operators.map((o) => o.kind).join(", ")}.`,
-      };
+      finalize = synthesizeFallbackFinalize(operators);
     }
 
     const validation = validateProposal(req.document, operators, profile);
@@ -285,6 +282,33 @@ export async function handleProposeViaAgents(
 }
 
 // --- shared with alfred.ts; kept duplicated here for transport-isolation ---
+
+// Mirrors alfred.ts's synthesizeFallbackFinalize. Used when the agent ends a
+// turn with operator tool calls but no finalize_proposal call.
+function synthesizeFallbackFinalize(ops: Operator[]): { rationale: string; alfred_says: string } {
+  const counts: Record<string, number> = {};
+  for (const op of ops) counts[op.kind] = (counts[op.kind] ?? 0) + 1;
+  const verb: Record<string, string> = {
+    split: "Splitting",
+    merge: "Merging",
+    move: "Reordering",
+    hoist: "Hoisting",
+    demote: "Demoting",
+    migrate: "Reprojecting from a foreign-voice fragment",
+    glue: "Gluing",
+    delete: "Cutting",
+  };
+  const parts = (Object.keys(counts) as string[]).map((k) => {
+    const n = counts[k]!;
+    const stem = verb[k] ?? `${k}ing`;
+    return n > 1 ? `${stem} (×${n})` : stem;
+  });
+  const says = parts.length === 1 ? `${parts[0]}.` : `${parts.slice(0, -1).join(", ")} and ${parts.at(-1)}.`;
+  return {
+    rationale: `Operators: ${ops.map((o) => o.kind).join(", ")}. (Editorial commentary missing — model skipped finalize_proposal; this proposal still validated against the Voice Guardian.)`,
+    alfred_says: says,
+  };
+}
 
 function parseOperator(name: string, input: Record<string, unknown>): Operator | null {
   switch (name) {
