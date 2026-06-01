@@ -1,8 +1,12 @@
 # Alfred
 
-> Inverse-whitewashing. A writing environment where Claude Opus 4.7 is constrained to operate on **document structure**, never on prose. Voice is preserved by construction.
+Alfred is a writing environment where AI can rearrange your writing, but not overwrite your voice.
 
 Alfred is the Anthropic Opus 4.7 hackathon submission for the **"Build for What's Next"** track.
+
+I was selected as one of 500 builders, out of 20,000 applicants globally in Anthropic's Hackathon (2.4% acceptance), and I received 500$ of Claude API credits for the same.
+
+https://cerebralvalley.ai/e/built-with-4-7-hackathon/hackathon/gallery?project=233
 
 ## What it does
 
