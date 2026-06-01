@@ -9,15 +9,18 @@ import type {
   VoiceProfile,
 } from "./types";
 
+const API_BASE = import.meta.env.VITE_ALFRED_API_BASE_URL || "";
+
 export type HealthInfo = {
   ok: boolean;
   service?: string;
   model?: string;
+  mode?: string;
 };
 
 export async function getHealth(): Promise<HealthInfo> {
   try {
-    const res = await fetch("/api/health");
+    const res = await fetch(`${API_BASE}/api/health`);
     if (!res.ok) return { ok: false };
     return (await res.json()) as HealthInfo;
   } catch {
@@ -26,7 +29,7 @@ export async function getHealth(): Promise<HealthInfo> {
 }
 
 async function postJson<T>(url: string, body: unknown): Promise<T> {
-  const res = await fetch(url, {
+  const res = await fetch(`${API_BASE}${url}`, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify(body),
@@ -51,17 +54,23 @@ export async function inspect(req: InspectRequest): Promise<InspectResponse> {
 }
 
 export async function getProfile(): Promise<ProfileResponse> {
-  const res = await fetch("/api/profile");
+  const res = await fetch(`${API_BASE}/api/profile`);
   if (!res.ok) throw new Error(`profile fetch ${res.status}`);
   return (await res.json()) as ProfileResponse;
 }
 
 export async function putProfile(profile: VoiceProfile): Promise<{ ok: true }> {
-  const res = await fetch("/api/profile", {
+  const res = await fetch(`${API_BASE}/api/profile`, {
     method: "PUT",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify({ profile }),
   });
   if (!res.ok) throw new Error(`profile put ${res.status}`);
   return (await res.json()) as { ok: true };
+}
+
+export function getApiBackendLabel(): string {
+  if (!API_BASE) return "local";
+  if (API_BASE.includes("workers.dev") || API_BASE.includes("8787")) return "cloudflare-cma-isolate";
+  return "remote";
 }
