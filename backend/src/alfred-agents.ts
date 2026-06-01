@@ -10,11 +10,11 @@ import path from "node:path";
 import { v4 as uuidv4 } from "uuid";
 import type {
   Operator,
-  Position,
   Proposal,
   ProposeRequest,
   ProposeResponse,
 } from "./types.js";
+import { parseOperator } from "./operator-parse.js";
 import {
   renderDocumentBlock,
   renderHoardedBlock,
@@ -152,6 +152,7 @@ export async function handleProposeViaAgents(
     operators = [];
     finalize = null;
     endTurn = false;
+    const parseErrors: string[] = [];
     const seenToolUseIds: string[] = [];
     const ackedToolUseIds = new Set<string>();
 
@@ -177,8 +178,11 @@ export async function handleProposeViaAgents(
             alfred_says: String(tu.input.alfred_says ?? ""),
           };
         } else {
-          const op = parseOperator(tu.name, tu.input);
-          if (op) operators.push(op);
+          try {
+            operators.push(parseOperator(tu.name, tu.input));
+          } catch (err) {
+            parseErrors.push(err instanceof Error ? err.message : String(err));
+          }
         }
       } else if (t === "session.status_idle") {
         const idle = ev as unknown as IdleEvt;
@@ -232,6 +236,14 @@ export async function handleProposeViaAgents(
         // eslint-disable-next-line no-console
         console.warn(`[alfred-agents] couldn't ack ${unacked.length} leftover tool_uses:`, err instanceof Error ? err.message : String(err));
       }
+    }
+
+    if (parseErrors.length > 0) {
+      return {
+        ok: false,
+        error: "malformed_operators",
+        details: `Agent emitted malformed tool calls: ${parseErrors.join("; ")}`,
+      };
     }
 
     if (!finalize) {
@@ -308,79 +320,6 @@ function synthesizeFallbackFinalize(ops: Operator[]): { rationale: string; alfre
     rationale: `Operators: ${ops.map((o) => o.kind).join(", ")}. (Editorial commentary missing — model skipped finalize_proposal; this proposal still validated against the Voice Guardian.)`,
     alfred_says: says,
   };
-}
-
-function parseOperator(name: string, input: Record<string, unknown>): Operator | null {
-  switch (name) {
-    case "split":
-      return {
-        kind: "split",
-        paragraph_id: String(input.paragraph_id),
-        after_sentence_index: Number(input.after_sentence_index),
-      };
-    case "merge":
-      return {
-        kind: "merge",
-        first_paragraph_id: String(input.first_paragraph_id),
-        second_paragraph_id: String(input.second_paragraph_id),
-        glue_text: typeof input.glue_text === "string" ? input.glue_text : undefined,
-      };
-    case "move":
-      return {
-        kind: "move",
-        paragraph_id: String(input.paragraph_id),
-        target_position: parsePosition(input.target_position),
-      };
-    case "hoist":
-      return {
-        kind: "hoist",
-        paragraph_id: String(input.paragraph_id),
-        target_role: input.target_role as "intro" | "thesis" | "section_lead",
-        target_position: parsePosition(input.target_position),
-      };
-    case "demote":
-      return {
-        kind: "demote",
-        paragraph_id: String(input.paragraph_id),
-        parent_paragraph_id: String(input.parent_paragraph_id),
-      };
-    case "migrate":
-      return {
-        kind: "migrate",
-        paragraph_id: String(input.paragraph_id),
-        rewrite_text: String(input.rewrite_text),
-        change_budget_tokens: Number(input.change_budget_tokens),
-      };
-    case "glue":
-      return {
-        kind: "glue",
-        position: parsePosition(input.position),
-        text: String(input.text),
-      };
-    case "delete":
-      return { kind: "delete", paragraph_id: String(input.paragraph_id) };
-    default:
-      return null;
-  }
-}
-
-function parsePosition(raw: unknown): Position {
-  if (!raw || typeof raw !== "object") return { kind: "at", where: "end" };
-  const v = raw as Record<string, unknown>;
-  if (v.kind === "after" && typeof v.paragraph_id === "string" && v.paragraph_id.length > 0) {
-    return { kind: "after", paragraph_id: v.paragraph_id };
-  }
-  if (v.kind === "at") {
-    const where = v.where === "start" ? "start" : "end";
-    return { kind: "at", where };
-  }
-  if (typeof v.paragraph_id === "string" && v.paragraph_id.length > 0) {
-    return { kind: "after", paragraph_id: v.paragraph_id };
-  }
-  if (v.where === "start" || v.where === "end") {
-    return { kind: "at", where: v.where as "start" | "end" };
-  }
-  return { kind: "at", where: "end" };
 }
 
 export function getAgentBootstrap(): AgentBootstrap | null {

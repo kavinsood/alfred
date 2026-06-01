@@ -6,11 +6,11 @@ import { v4 as uuidv4 } from "uuid";
 import type {
   AlfredDocument,
   Operator,
-  Position,
   Proposal,
   ProposeRequest,
   ProposeResponse,
 } from "./types.js";
+import { parseOperator } from "./operator-parse.js";
 import { TOOL_DEFS } from "./operators.js";
 import {
   buildSystemPrompt,
@@ -213,11 +213,11 @@ function parseToolCalls(resp: Anthropic.Message): ParsedOk | ParsedErr {
       continue;
     }
 
-    const op = parseOperator(name, input);
-    if (!op) {
-      return { ok: false, reason: `unknown or malformed tool call: ${name}` };
+    try {
+      operators.push(parseOperator(name, input));
+    } catch (err) {
+      return { ok: false, reason: err instanceof Error ? err.message : `malformed tool call: ${name}` };
     }
-    operators.push(op);
   }
 
   if (!finalize) {
@@ -232,8 +232,11 @@ function recoverFromMissingFinalize(resp: Anthropic.Message): ParsedOk | null {
   for (const block of resp.content) {
     if (block.type !== "tool_use") continue;
     if (block.name === "finalize_proposal") return null; // no recovery needed
-    const op = parseOperator(block.name, block.input as Record<string, unknown>);
-    if (op) operators.push(op);
+    try {
+      operators.push(parseOperator(block.name, block.input as Record<string, unknown>));
+    } catch {
+      // malformed op in recovery path — skip it
+    }
   }
   if (operators.length === 0) return null;
   return { ok: true, operators, finalize: synthesizeFallbackFinalize(operators) };
@@ -267,93 +270,3 @@ function synthesizeFallbackFinalize(ops: Operator[]): { rationale: string; alfre
   };
 }
 
-function parseOperator(name: string, input: Record<string, unknown>): Operator | null {
-  switch (name) {
-    case "split":
-      return {
-        kind: "split",
-        paragraph_id: String(input.paragraph_id),
-        after_sentence_index: Number(input.after_sentence_index),
-      };
-    case "merge":
-      return {
-        kind: "merge",
-        first_paragraph_id: String(input.first_paragraph_id),
-        second_paragraph_id: String(input.second_paragraph_id),
-        glue_text: typeof input.glue_text === "string" ? input.glue_text : undefined,
-      };
-    case "move":
-      return {
-        kind: "move",
-        paragraph_id: String(input.paragraph_id),
-        target_position: parsePosition(input.target_position),
-      };
-    case "hoist":
-      return {
-        kind: "hoist",
-        paragraph_id: String(input.paragraph_id),
-        target_role: input.target_role as "intro" | "thesis" | "section_lead",
-        target_position: parsePosition(input.target_position),
-      };
-    case "demote":
-      return {
-        kind: "demote",
-        paragraph_id: String(input.paragraph_id),
-        parent_paragraph_id: String(input.parent_paragraph_id),
-      };
-    case "migrate":
-      return {
-        kind: "migrate",
-        paragraph_id: String(input.paragraph_id),
-        rewrite_text: String(input.rewrite_text),
-        change_budget_tokens: Number(input.change_budget_tokens),
-      };
-    case "glue":
-      return {
-        kind: "glue",
-        position: parsePosition(input.position),
-        text: String(input.text),
-      };
-    case "delete":
-      return { kind: "delete", paragraph_id: String(input.paragraph_id) };
-    default:
-      return null;
-  }
-}
-
-function parsePosition(raw: unknown): Position {
-  if (!raw || typeof raw !== "object") {
-    // eslint-disable-next-line no-console
-    console.warn("[alfred] target_position missing/non-object, defaulting to end:", raw);
-    return { kind: "at", where: "end" };
-  }
-  const v = raw as Record<string, unknown>;
-
-  // happy path
-  if (v.kind === "after" && typeof v.paragraph_id === "string" && v.paragraph_id.length > 0) {
-    return { kind: "after", paragraph_id: v.paragraph_id };
-  }
-  if (v.kind === "at") {
-    const where = v.where === "start" ? "start" : "end";
-    return { kind: "at", where };
-  }
-
-  // forgiving variants — sometimes the model emits "before"/"start"/"end" or omits 'kind'
-  if (v.kind === "before" && typeof v.paragraph_id === "string" && v.paragraph_id.length > 0) {
-    // there is no 'before' op in our algebra; the closest semantically is 'at start' if no anchor,
-    // or we coerce to 'after' the previous; for now, place it at start so the structure is preserved
-    // eslint-disable-next-line no-console
-    console.warn("[alfred] target_position kind=before coerced to at:start");
-    return { kind: "at", where: "start" };
-  }
-  if (typeof v.paragraph_id === "string" && v.paragraph_id.length > 0) {
-    return { kind: "after", paragraph_id: v.paragraph_id };
-  }
-  if (v.where === "start" || v.where === "end") {
-    return { kind: "at", where: v.where as "start" | "end" };
-  }
-
-  // eslint-disable-next-line no-console
-  console.warn("[alfred] unknown target_position shape, defaulting to end:", v);
-  return { kind: "at", where: "end" };
-}
