@@ -1,0 +1,55 @@
+{
+  "name": "alfred-cma",
+  "version": "0.1.0",
+  "type": "module",
+  "private": true,
+  "description": "Alfred CMA control plane — Claude Managed Agents with isolate backend",
+  "scripts": {
+    "deploy": "wrangler deploy",
+    "postdeploy": "npm run db:migrate:remote",
+    "dev": "wrangler dev",
+    "start": "npm run dev",
+    "prebuild": "node scripts/ensure-kv.mjs && node scripts/ensure-d1.mjs",
+    "cf-typegen": "wrangler types",
+    "typecheck": "tsc --noEmit",
+    "test": "vitest run",
+    "test:watch": "vitest",
+    "db:migrate": "wrangler d1 migrations apply DB --local && wrangler d1 migrations apply ALFRED_DB --local",
+    "db:migrate:remote": "wrangler d1 migrations apply DB --remote && wrangler d1 migrations apply ALFRED_DB --remote"
+  },
+  "devDependencies": {
+    "@cloudflare/puppeteer": "^1.1.0",
+    "@cloudflare/vitest-pool-workers": "^0.9.0",
+    "@types/node": "^24.12.0",
+    "typescript": "^5.9.3",
+    "vitest": "^3.0.0",
+    "wrangler": "^4.76.0"
+  },
+  "cloudflare": {
+    "bindings": {
+      "ENVIRONMENT_ID": {
+        "description": "Anthropic environment ID. Create a Self-managed environment in Claude Platform Console."
+      },
+      "ANTHROPIC_ENVIRONMENT_KEY": {
+        "description": "Environment key (sk-ant-oat01-...) for the worker flow."
+      },
+      "ANTHROPIC_API_KEY": {
+        "description": "Anthropic API key for Managed Agents API calls."
+      },
+      "WEBHOOK_SECRET": {
+        "description": "HMAC signing secret from Anthropic Console webhooks."
+      }
+    }
+  },
+  "license": "MIT",
+  "dependencies": {
+    "@anthropic-ai/sdk": "https://app.stainless.com/pkg/s/anthropic-typescript/11dd7e25acfec7caffc11c06d11629f42846b595/dist.tar.gz",
+    "@cloudflare/codemode": "^0.3.4",
+    "@cloudflare/shell": "^0.3.6",
+    "@cloudflare/think": "^0.5.3",
+    "agents": "^0.12.4",
+    "hono": "^4.12.9",
+    "minimatch": "^10.2.5",
+    "zod": "^4.4.3"
+  }
+}
