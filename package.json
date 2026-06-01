@@ -9,7 +9,14 @@
     "dev:backend": "npm --prefix backend run dev",
     "build": "npm --prefix frontend run build && npm --prefix backend run build",
     "install:all": "npm install && npm --prefix frontend install && npm --prefix backend install",
-    "smoke": "node tests/smoke.mjs"
+    "smoke": "node tests/smoke.mjs",
+    "typecheck": "npm --prefix backend run typecheck && npm --prefix cloudflare run typecheck",
+    "cf:typecheck": "cd cloudflare && npm run typecheck",
+    "cf:test": "cd cloudflare && npm test",
+    "cf:deploy": "cd cloudflare && npm run deploy",
+    "cf:dev": "cd cloudflare && npm run dev",
+    "cf:migrate": "cd cloudflare && npm run db:migrate",
+    "cf:migrate:remote": "cd cloudflare && npm run db:migrate:remote"
   },
   "devDependencies": {
     "concurrently": "^9.0.1"

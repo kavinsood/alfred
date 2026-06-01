@@ -3,10 +3,10 @@
 You are working on **Alfred**: an AI writing environment for the Anthropic Opus 4.7 hackathon (deadline ~48h from 2026-04-25). This file is the source of truth. Read it before doing anything.
 
 ## Read these first
-- `SPEC.md` — what Alfred is and what it does
-- `ARCHITECTURE.md` — tech architecture, stack, file layout
-- `OPERATORS.md` — the operator algebra (Alfred's IR)
-- `CONVENTIONS.md` — coding style, conventions
+- `docs/SPEC.md` — what Alfred is and what it does
+- `docs/ARCHITECTURE.md` — tech architecture, stack, file layout
+- `docs/OPERATORS.md` — the operator algebra (Alfred's IR)
+- `docs/CONVENTIONS.md` — coding style, conventions
 - `docs/tasks/` — per-task specs assigned to agents
 
 ## One-line pitch
