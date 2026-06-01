@@ -8,7 +8,7 @@
 
 - `tokenize.ts` — whitespace+punctuation tokenizer, token-level Levenshtein, change-fraction helpers.
 - `operators.ts` — Anthropic tool schemas for all 8 operators + `finalize_proposal`. Pure operator-application functions consumed by both validation (dry-run) and the frontend mirror.
-- `validator.ts` — Voice Guardian. Rejects proposals violating: glue budget per-op (15) or total (60), forbidden tokens, migrate change-pct (>30%), or topology errors (referenced paragraph IDs missing).
+- `validator.ts` — Voice Guardian. Rejects proposals violating: glue budget per-op (15) or total (60), forbidden tokens, migrate change-pct (>50%), or topology errors (referenced paragraph IDs missing).
 - `session.ts` — in-memory session state (proposal index, hoarded few-shot, log). `recordDecision` infers learned preferences from accept/reject patterns and updates the on-disk profile.
 - `prompts.ts` — system-prompt builder with sections: role, operator algebra, voice profile, hoarded few-shot, document, invocation. Editorial-voice instructions explicit.
 - `profile.ts` — `~/.alfred/proserc.md` + `voice-profile.json` + `sessions/<id>.md`. Markdown is human-editable (vibe_anchor, forbidden_tokens). JSON is machine-written (learned_preferences, stylometric_signals). Handlers for /api/profile, /api/decision.

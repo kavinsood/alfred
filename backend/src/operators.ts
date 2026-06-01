@@ -107,7 +107,7 @@ export const TOOL_DEFS = [
   {
     name: "migrate",
     description:
-      "Reproject a paragraph from an older voice/coordinate frame into the current voice profile. The ONLY operator that may rewrite words. Change is capped at 30% token-edit distance. Use only on fragments clearly written in a different voice (e.g., AI output, older session, foreign source).",
+      "Reproject a paragraph from an older voice/coordinate frame into the current voice profile. The ONLY operator that may rewrite words. Change is capped at 50% token-edit distance. Use only on fragments clearly written in a different voice (e.g., AI output, older session, foreign source).",
     input_schema: {
       type: "object",
       required: ["paragraph_id", "rewrite_text", "change_budget_tokens"],

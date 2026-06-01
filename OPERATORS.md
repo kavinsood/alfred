@@ -106,7 +106,7 @@ type Operator =
 Before showing a proposal to the user, the backend runs:
 1. **Glue budget check.** Sum tokens of all `glue_text` and `text` fields across operators. If > 15 per operator OR > 60 total, reject the proposal and ask the AI to redo with tighter glue.
 2. **Forbidden tokens check.** Tokenize all glue + migrate output. If any token is in `forbidden_tokens`, reject and redo.
-3. **Migrate change-pct check.** For migrate operators, tokenize old and new; ratio of changed tokens must be ≤30%.
+3. **Migrate change-pct check.** For migrate operators, tokenize old and new; ratio of changed tokens must be ≤50%.
 4. **Topology validity.** Apply operators in a dry-run. If they reference nonexistent paragraph IDs or violate ordering, reject and redo.
 
 This validation is the architectural constraint that makes "voice preservation" load-bearing rather than aspirational. If Claude tries to ghostwrite, the validator rejects.

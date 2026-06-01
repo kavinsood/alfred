@@ -46,7 +46,7 @@ For the Anthropic Opus 4.7 hackathon submission video (and live demos).
 
 **[Wait ~10 seconds. Diff overlay.]**
 
-> "Alfred emits a sequence: hoist the question fragment to the lede, reorder the rest, and migrate the foreign-voice fragments by stripping their bracketed openers. Migrate is the only operator that may rewrite words — it's capped at 30% token-edit distance. The Voice Guardian shows it ran at 28%."
+> "Alfred emits a sequence: hoist the question fragment to the lede, reorder the rest, and migrate the foreign-voice fragments by stripping their bracketed openers. Migrate is the only operator that may rewrite words — it's capped at 50% token-edit distance. The Voice Guardian shows it ran at 28%."
 
 **[Press Tab. The fragments unify into one coherent draft in the writer's voice.]**
 
@@ -65,5 +65,5 @@ For the Anthropic Opus 4.7 hackathon submission video (and live demos).
 - **"Why no graph view?"** The structural model lives in Claude's context, not on screen. Activation energy is the metric. The blank page wins.
 - **"Why not multi-agent?"** Tried it; lost context by the terabit. One contoured Alfred orchestrator holds document + .proserc + hoarded few-shot in a single call. Architectural simplicity is a feature.
 - **"What about per-user fine-tuning?"** Phase 3, post-hackathon. Every accept/reject is already a logged training signal. Prime Intellect Lab gives us multi-tenant LoRA inference. The data flywheel exists today; the wiring is a week of work.
-- **"How do you know voice is actually preserved?"** Architecturally: the action space allows zero free-prose output. The only operator that can rewrite words is `migrate`, and it's capped at 30% token-edit distance, validated server-side. If Claude tries to ghostwrite, the Voice Guardian rejects.
+- **"How do you know voice is actually preserved?"** Architecturally: the action space allows no unbounded free-prose output. The only operator that can rewrite words is `migrate`, and it's capped at 50% token-edit distance, validated server-side. If Claude tries to ghostwrite, the Voice Guardian rejects.
 - **"Why Opus and not Sonnet/Haiku?"** Opus is doing structural reasoning, not content generation. The latency is amortized across the editing session — agents run in the background. We get the quality of Opus's reading without paying its latency on the typing path.

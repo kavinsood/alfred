@@ -161,7 +161,7 @@ function inferPreference(profile: VoiceProfile, ex: FewShotExample): VoiceProfil
       matched: ex.decision === "accept" && opsSummary.includes("split"),
     },
     {
-      rule: "accepts migrates under 30% change",
+      rule: "accepts migrates under 50% change",
       matched: ex.decision === "accept" && opsSummary.includes("migrate"),
     },
   ];

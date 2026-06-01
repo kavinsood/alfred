@@ -101,7 +101,7 @@ Backend
   ↓ Anthropic Messages API + tool_use
 Claude Opus 4.7 (one prompt: system + profile + document + hoarded + intent)
   ↓ tool calls
-Voice Guardian validation (glue budget · forbidden tokens · migrate Δ ≤ 30%)
+Voice Guardian validation (glue budget · forbidden tokens · migrate Δ ≤ 50%)
   ↓ Proposal envelope
 Diff overlay (Tab/Esc)
   ↓ accept/reject
