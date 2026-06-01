@@ -14,7 +14,7 @@ import { DiffOverlay } from "@/components/DiffOverlay";
 import { Panopticon } from "@/components/Panopticon";
 import { StatusBar } from "@/components/StatusBar";
 import { useSession } from "@/store/session";
-import { decide, getHealth, inspect, propose } from "@/lib/api";
+import { decide, getHealth, getProfile, inspect, propose } from "@/lib/api";
 import { applyOperators } from "@/lib/operators";
 import type { AlfredDocument } from "@/lib/types";
 
@@ -34,6 +34,7 @@ export function App() {
     panopticonOpen,
     setStatus,
     setProposal,
+    setProfile,
     setInspectRead,
     togglePanopticon,
     pushDecision,
@@ -194,13 +195,14 @@ export function App() {
         proposal_id: pendingProposal.id,
         decision: "accept",
       });
+      getProfile().then((r) => setProfile(r.profile)).catch(() => {});
     } catch (err) {
       console.error("decide accept failed", err);
     }
     setProposal(null);
     setStatus("ready", "+1 accepted");
     setTimeout(() => setStatus("ready"), 1800);
-  }, [pendingProposal, originalAtPropose, pushDecision, sessionId, setProposal, setStatus]);
+  }, [pendingProposal, originalAtPropose, pushDecision, sessionId, setProposal, setProfile, setStatus]);
 
   const onAlternative = useCallback(async () => {
     if (!pendingProposal) return;
@@ -219,6 +221,7 @@ export function App() {
         decision: "reject",
         reject_reason: "asked for alternative",
       });
+      getProfile().then((r) => setProfile(r.profile)).catch(() => {});
     } catch (err) {
       console.error("decide reject failed", err);
     }
@@ -230,7 +233,7 @@ export function App() {
     } else {
       setPaletteOpen(true);
     }
-  }, [pendingProposal, intentAtPropose, sessionId, pushDecision, setProposal, setStatus]);
+  }, [pendingProposal, intentAtPropose, sessionId, pushDecision, setProposal, setProfile, setStatus]);
 
   const onReject = useCallback(
     async (reason?: string) => {
@@ -249,6 +252,7 @@ export function App() {
           decision: "reject",
           reject_reason: reason,
         });
+        getProfile().then((r) => setProfile(r.profile)).catch(() => {});
       } catch (err) {
         console.error("decide reject failed", err);
       }
@@ -256,7 +260,7 @@ export function App() {
       setStatus("ready", "rejected");
       setTimeout(() => setStatus("ready"), 1800);
     },
-    [pendingProposal, pushDecision, sessionId, setProposal, setStatus]
+    [pendingProposal, pushDecision, sessionId, setProposal, setProfile, setStatus]
   );
 
   return (
