@@ -12,6 +12,7 @@ import type {
 } from "./types.js";
 import { parseOperator } from "./operator-parse.js";
 import { TOOL_DEFS } from "./operators.js";
+import { MODEL } from "./config.js";
 import {
   buildSystemPrompt,
   renderDocumentBlock,
@@ -23,7 +24,6 @@ import { describeFailureForRetry, validateProposal } from "./validator.js";
 import { loadProfile } from "./profile.js";
 import { buildHoardedContext, getOrCreateSession, recordProposal } from "./session.js";
 
-const MODEL = "claude-opus-4-7";
 const MAX_TOKENS = 4096;
 const MAX_RETRIES = 2;
 const NETWORK_RETRIES = 3;

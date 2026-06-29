@@ -2,6 +2,174 @@
 
 import type { AlfredDocument, Operator, Paragraph, Position } from "./alfred-types.js";
 
+// --- Anthropic tool schemas ------------------------------------------------
+// Single source for the operator tool definitions used by the Messages transport.
+
+export const POSITION_SCHEMA = {
+  oneOf: [
+    {
+      type: "object",
+      required: ["kind", "paragraph_id"],
+      properties: {
+        kind: { type: "string", const: "after" },
+        paragraph_id: { type: "string" },
+      },
+      additionalProperties: false,
+    },
+    {
+      type: "object",
+      required: ["kind", "where"],
+      properties: {
+        kind: { type: "string", const: "at" },
+        where: { type: "string", enum: ["start", "end"] },
+      },
+      additionalProperties: false,
+    },
+  ],
+};
+
+export const TOOL_DEFS = [
+  {
+    name: "split",
+    description:
+      "Divide one paragraph into two at a sentence boundary. Adds NO new words. Use when a paragraph fuses two distinct ideas.",
+    input_schema: {
+      type: "object",
+      required: ["paragraph_id", "after_sentence_index"],
+      properties: {
+        paragraph_id: { type: "string" },
+        after_sentence_index: { type: "integer", minimum: 0 },
+      },
+      additionalProperties: false,
+    },
+  },
+  {
+    name: "merge",
+    description:
+      "Combine two paragraphs into one. Optional glue_text is at most 15 tokens and serves only as connective tissue. Use to collapse redundant claims.",
+    input_schema: {
+      type: "object",
+      required: ["first_paragraph_id", "second_paragraph_id"],
+      properties: {
+        first_paragraph_id: { type: "string" },
+        second_paragraph_id: { type: "string" },
+        glue_text: { type: "string", maxLength: 200 },
+      },
+      additionalProperties: false,
+    },
+  },
+  {
+    name: "move",
+    description:
+      "Relocate a paragraph to a new position. No text alteration. Use to fix flow.",
+    input_schema: {
+      type: "object",
+      required: ["paragraph_id", "target_position"],
+      properties: {
+        paragraph_id: { type: "string" },
+        target_position: POSITION_SCHEMA,
+      },
+      additionalProperties: false,
+    },
+  },
+  {
+    name: "hoist",
+    description:
+      "Move a paragraph to a higher structural role (intro / thesis / section_lead). Like 'move' plus a structural-role tag.",
+    input_schema: {
+      type: "object",
+      required: ["paragraph_id", "target_role", "target_position"],
+      properties: {
+        paragraph_id: { type: "string" },
+        target_role: {
+          type: "string",
+          enum: ["intro", "thesis", "section_lead"],
+        },
+        target_position: POSITION_SCHEMA,
+      },
+      additionalProperties: false,
+    },
+  },
+  {
+    name: "demote",
+    description:
+      "Tag a paragraph as supporting content under a parent claim. Metadata-only; no prose change.",
+    input_schema: {
+      type: "object",
+      required: ["paragraph_id", "parent_paragraph_id"],
+      properties: {
+        paragraph_id: { type: "string" },
+        parent_paragraph_id: { type: "string" },
+      },
+      additionalProperties: false,
+    },
+  },
+  {
+    name: "migrate",
+    description:
+      "Reproject a paragraph from an older voice/coordinate frame into the current voice profile. The ONLY operator that may rewrite words. Change is capped at 50% token-edit distance. Use only on fragments clearly written in a different voice (e.g., AI output, older session, foreign source).",
+    input_schema: {
+      type: "object",
+      required: ["paragraph_id", "rewrite_text", "change_budget_tokens"],
+      properties: {
+        paragraph_id: { type: "string" },
+        rewrite_text: { type: "string" },
+        change_budget_tokens: { type: "integer", minimum: 0 },
+      },
+      additionalProperties: false,
+    },
+  },
+  {
+    name: "glue",
+    description:
+      "Insert minimal connective text (≤15 tokens) to bridge structural moves.",
+    input_schema: {
+      type: "object",
+      required: ["position", "text"],
+      properties: {
+        position: POSITION_SCHEMA,
+        text: { type: "string", maxLength: 200 },
+      },
+      additionalProperties: false,
+    },
+  },
+  {
+    name: "delete",
+    description:
+      "Remove a paragraph (e.g., a clearly-orphaned aside). Must include rationale in the proposal.",
+    input_schema: {
+      type: "object",
+      required: ["paragraph_id"],
+      properties: { paragraph_id: { type: "string" } },
+      additionalProperties: false,
+    },
+  },
+  {
+    name: "finalize_proposal",
+    description:
+      "Emit the editorial commentary and rationale once all operator calls are made. Call this exactly once, AFTER all operator tool calls. The proposal is not complete without this call.",
+    input_schema: {
+      type: "object",
+      required: ["rationale", "alfred_says"],
+      properties: {
+        rationale: {
+          type: "string",
+          description:
+            "1-2 sentences. Editorial voice (e.g., 'Graf 3 drags. Hoisting the strongest claim to the lede.'). No flattery.",
+        },
+        alfred_says: {
+          type: "string",
+          description:
+            "1-2 sentences shown to the user above the diff. Crisper than rationale.",
+        },
+      },
+      additionalProperties: false,
+    },
+  },
+] as const;
+
+// --- Pure operator application ---------------------------------------------
+
 export function applyOperators(doc: AlfredDocument, ops: Operator[]): AlfredDocument {
   let next: AlfredDocument = cloneDoc(doc);
   for (const op of ops) {

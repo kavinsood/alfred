@@ -6,8 +6,7 @@ import { renderDocumentBlock, renderProfileBlock } from "./prompts.js";
 import { loadProfile } from "./profile.js";
 import { tokenize } from "./tokenize.js";
 import { splitSentences } from "./operators.js";
-
-const MODEL = "claude-opus-4-7";
+import { MODEL } from "./config.js";
 
 const client = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY });
 

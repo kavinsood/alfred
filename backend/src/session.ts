@@ -14,6 +14,8 @@ import type {
 } from "./types.js";
 import { loadProfile } from "./profile.js";
 import { appendSessionLog } from "./profile.js";
+import { computeReward, type RewardComponents } from "./reward.js";
+import { appendTrajectory } from "./trajectory.js";
 
 export type FewShotExample = {
   intent: string;
@@ -23,12 +25,32 @@ export type FewShotExample = {
   reject_reason?: string;
 };
 
+export type RewardEvent = {
+  ts: string;
+  proposal_id: string;
+  intent: string;
+  decision: "accept" | "reject" | "modify";
+  scalar: number;
+  edit_change_fraction: number | null;
+  operator_kinds: string[];
+  components: RewardComponents;
+};
+
 export type SessionState = {
   id: string;
   created_at: string;
-  proposal_index: Map<string, { proposal: Proposal; intent: string; doc_at_propose: AlfredDocument }>;
+  proposal_index: Map<
+    string,
+    {
+      proposal: Proposal;
+      intent: string;
+      doc_at_propose: AlfredDocument;
+      hoarded_at_propose: FewShotExample[];
+    }
+  >;
   hoarded: FewShotExample[]; // last N decisions
   log: SessionLogEntry[];
+  rewards: RewardEvent[]; // graded reward signal, one per decided episode
 };
 
 const HOARD_MAX = 12;
@@ -44,6 +66,7 @@ export function getOrCreateSession(id: string): SessionState {
     proposal_index: new Map(),
     hoarded: [],
     log: [],
+    rewards: [],
   };
   sessions.set(id, fresh);
   return fresh;
@@ -60,7 +83,12 @@ export function recordProposal(
   proposal: Proposal
 ): void {
   const s = getOrCreateSession(sessionId);
-  s.proposal_index.set(proposal.id, { proposal, intent, doc_at_propose: doc });
+  s.proposal_index.set(proposal.id, {
+    proposal,
+    intent,
+    doc_at_propose: doc,
+    hoarded_at_propose: [...s.hoarded],
+  });
 }
 
 export async function recordDecision(
@@ -71,7 +99,7 @@ export async function recordDecision(
   if (!stored) {
     throw new Error(`unknown proposal_id ${req.proposal_id}`);
   }
-  const { proposal, intent } = stored;
+  const { proposal, intent, doc_at_propose, hoarded_at_propose } = stored;
   const operatorsSummary = summarizeOperators(proposal.operators);
 
   const example: FewShotExample = {
@@ -98,9 +126,47 @@ export async function recordDecision(
   session.log.push(entry);
   await appendSessionLog(req.session_id, entry);
 
+  // Graded reward signal (edit-delta aware). This is what an eventual training
+  // run would optimize; today it powers the learned profile and the Panopticon.
+  const reward = computeReward(
+    req.decision,
+    doc_at_propose,
+    proposal.operators,
+    req.modified_text
+  );
+  session.rewards.push({
+    ts: entry.ts,
+    proposal_id: proposal.id,
+    intent,
+    decision: reward.decision,
+    scalar: reward.scalar,
+    edit_change_fraction: reward.edit_change_fraction,
+    operator_kinds: proposal.operators.map((o) => o.kind),
+    components: reward.components,
+  });
+
   // Update voice profile with a new learned preference if the signal is strong.
+  // `profile` here is the state the proposal was conditioned on (pre-update).
   const profile = await loadProfile();
   const updated = inferPreference(profile, example);
+
+  // Emit the (state, action, verifier, reward) rollout to the trajectory dataset.
+  // Best-effort: a logging failure must never break the decision path.
+  try {
+    await appendTrajectory({
+      sessionId: req.session_id,
+      proposal,
+      intent,
+      docAtPropose: doc_at_propose,
+      hoarded: hoarded_at_propose,
+      profile,
+      reward,
+      rejectReason: req.reject_reason,
+    });
+  } catch (err) {
+    // eslint-disable-next-line no-console
+    console.warn(`[alfred] trajectory append failed: ${err instanceof Error ? err.message : String(err)}`);
+  }
 
   const summary = describeProfileUpdate(updated, profile);
   return { profile: updated, summary };

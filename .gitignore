@@ -14,3 +14,7 @@ build/
 *.tsbuildinfo
 data/runtime/
 .claude/
+
+# private — kept on disk locally, excluded from the public repo
+transcript.md
+docs/DESIGN-LEDGER.md

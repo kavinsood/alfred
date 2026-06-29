@@ -15,7 +15,7 @@ export type HealthInfo = {
   ok: boolean;
   service?: string;
   model?: string;
-  mode?: string;
+  transport?: string;
 };
 
 export async function getHealth(): Promise<HealthInfo> {
@@ -69,8 +69,33 @@ export async function putProfile(profile: VoiceProfile): Promise<{ ok: true }> {
   return (await res.json()) as { ok: true };
 }
 
+export type EnvironmentInfo = {
+  env: string;
+  description: string;
+  action_space: Array<{ name: string; description: string }>;
+  reward_function: {
+    description: string;
+    mapping: Array<{ decision: string; reward: string }>;
+  };
+  verifier: { description: string; constraints: string[] };
+  episode: string;
+  reward_stats: {
+    episodes: number;
+    mean_reward: number;
+    by_decision: Array<{ decision: string; count: number; mean_reward: number }>;
+    by_operator: Array<{ operator: string; count: number; mean_reward: number }>;
+    trajectory_count: number;
+  } | null;
+};
+
+export async function getEnvironment(sessionId?: string): Promise<EnvironmentInfo> {
+  const qs = sessionId ? `?session_id=${encodeURIComponent(sessionId)}` : "";
+  const res = await fetch(`${API_BASE}/api/environment${qs}`);
+  if (!res.ok) throw new Error(`environment fetch ${res.status}`);
+  return (await res.json()) as EnvironmentInfo;
+}
+
 export function getApiBackendLabel(): string {
   if (!API_BASE) return "local";
-  if (API_BASE.includes("workers.dev") || API_BASE.includes("8787")) return "cloudflare-cma-isolate";
   return "remote";
 }

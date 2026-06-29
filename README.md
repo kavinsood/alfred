@@ -20,14 +20,14 @@ The architecture is enforced by a **Voice Guardian** that validates every propos
 
 A side panel — the **Panopticon** — shows you, in real time, what Alfred has learned about how you write. Your voice profile is a flat file you can edit, export, or delete. The model's model of you is yours.
 
-## Two transports
+## Transports
 
-Alfred ships two interchangeable orchestration backends behind one identical product surface. The thesis (action-space constraint, Voice Guardian, Panopticon transparency) is **transport-independent** — switch by env var, no other code changes, frontend can't tell.
+Alfred's thesis — action-space constraint, Voice Guardian, Panopticon transparency — is **transport-independent**: it lives above the orchestration layer. `main` ships the Messages transport; a second transport lives on a branch.
 
-- **Messages API** (default, `ALFRED_MODE=messages`) — `client.messages.create` with `tool_choice: { type: "any" }`, prompt caching via the `prompt-caching-2024-07-31` beta. Lowest friction for local dev.
-- **Managed Agents** (`ALFRED_MODE=agents`, on branch `managed-agents`) — agent definition (system prompt + 9 custom tools) provisioned once via `client.beta.agents.create`; per-document sessions via `client.beta.sessions.create`; per-Cmd+K invocation via `client.beta.sessions.events.stream`. Stateful at Anthropic, persistent across server restarts.
+- **Messages API** (`main`, default) — `client.messages.create` with `tool_choice: { type: "any" }`, prompt caching via the `prompt-caching-2024-07-31` beta. Lowest friction for local dev and the demo.
+- **Managed Agents + Cloudflare** (branch [`managed-agents-cf`](../../tree/managed-agents-cf)) — the same operator algebra and Voice Guardian, driven by `client.beta.agents` / `client.beta.sessions` (system prompt + 9 tool definitions: 7 structural operators + `delete` + `finalize_proposal`), plus an exploration of running the custom-tool runtime on Cloudflare isolates (D1 + Vectorize + egress firewall). Frozen exploration; `main` is the maintained artifact.
 
-Both transports share the operator algebra, prompts, Voice Guardian, profile manager, and `Proposal` envelope. See `docs/managed-agents.md` (on the `managed-agents` branch) and `MERGE_PLAN.md` for the architecture and procedure.
+Both share the operator algebra, prompts, Voice Guardian, profile manager, and `Proposal` envelope.
 
 ## Screenshots
 

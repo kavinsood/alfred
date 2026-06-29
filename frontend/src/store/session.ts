@@ -13,7 +13,7 @@ type SessionState = {
   alfredSays: string;
   pendingProposal: Proposal | null;
   panopticonOpen: boolean;
-  panopticonTab: "read" | "profile" | "log";
+  panopticonTab: "read" | "profile" | "log" | "environment";
   profile: VoiceProfile | null;
   recentDecisions: Array<{ ts: string; intent: string; decision: string; rationale: string; operator_kinds: string[] }>;
   inspectRead: { read: string; claims: number; evidence_links: number; orphans: string[] } | null;

@@ -1,142 +1,94 @@
 import { describe, it, expect } from "vitest";
+import type { AlfredDocument, Operator, VoiceProfile } from "../alfred-types.js";
 import { validateProposal } from "../validator.js";
-import type { AlfredDocument, Operator, AlfredProfile } from "../alfred-types.js";
+import { applyOperators } from "../operators.js";
 
-function makeDoc(texts: string[]): AlfredDocument {
-  return {
-    paragraphs: texts.map((text, i) => ({ id: `p${i + 1}`, text })),
-  };
+function profile(forbidden: string[] = []): VoiceProfile {
+  return { vibe_anchor: "", forbidden_tokens: forbidden, learned_preferences: [] };
 }
 
-function makeProfile(overrides?: Partial<AlfredProfile>): AlfredProfile {
-  return {
-    id: "test-profile",
-    vibe_anchor: "",
-    forbidden_tokens: [],
-    learned_preferences: [],
-    ...overrides,
-  };
-}
+const doc: AlfredDocument = {
+  paragraphs: [
+    { id: "p1", text: "First sentence here. Second sentence here." },
+    { id: "p2", text: "Another paragraph entirely." },
+  ],
+};
 
-describe("validateProposal", () => {
-  it("validates a correct split proposal", () => {
-    const doc = makeDoc(["First sentence. Second sentence."]);
-    const result = validateProposal({
-      document: doc,
-      proposal: {
-        intent: "split paragraph",
-        rationale: "two ideas",
-        operators: [{ kind: "split", paragraph_id: "p1", after_sentence_index: 0 }],
-      },
-    });
-    expect(result.valid).toBe(true);
-    expect(result.errors).toHaveLength(0);
-    expect(result.afterDocument).toBeDefined();
-    expect(result.afterDocument!.paragraphs).toHaveLength(2);
-  });
-
-  it("rejects malformed operator — missing paragraph", () => {
-    const doc = makeDoc(["Hello world."]);
-    const result = validateProposal({
-      document: doc,
-      proposal: {
-        intent: "delete",
-        rationale: "remove",
-        operators: [{ kind: "delete", paragraph_id: "nonexistent" }],
-      },
-    });
-    expect(result.valid).toBe(false);
-    expect(result.errors.some((e) => e.includes("topology error"))).toBe(true);
-  });
-
-  it("enforces migrate cap at 50%", () => {
-    const doc = makeDoc(["The quick brown fox jumps over the lazy dog near the river bank today."]);
-    const result = validateProposal({
-      document: doc,
-      proposal: {
-        intent: "migrate",
-        rationale: "voice mismatch",
-        operators: [
-          {
-            kind: "migrate",
-            paragraph_id: "p1",
-            rewrite_text: "Completely different text that shares absolutely nothing with the original paragraph at all.",
-            change_budget_tokens: 20,
-          },
-        ],
-      },
-    });
-    expect(result.valid).toBe(false);
-    expect(result.errors.some((e) => e.includes("change-pct") && e.includes("exceeds limit 50%"))).toBe(true);
-  });
-
-  it("enforces glue cap per operator (15 tokens)", () => {
-    const doc = makeDoc(["First.", "Second."]);
-    const longGlue = "one two three four five six seven eight nine ten eleven twelve thirteen fourteen fifteen sixteen";
-    const result = validateProposal({
-      document: doc,
-      proposal: {
-        intent: "glue",
-        rationale: "bridge",
-        operators: [
-          { kind: "glue", position: { kind: "after", paragraph_id: "p1" }, text: longGlue },
-        ],
-      },
-    });
-    expect(result.valid).toBe(false);
-    expect(result.errors.some((e) => e.includes("exceeds 15 tokens"))).toBe(true);
-  });
-
-  it("enforces total glue budget (60 tokens)", () => {
-    const doc = makeDoc(["A.", "B.", "C.", "D.", "E."]);
-    const glue14 = "one two three four five six seven eight nine ten eleven twelve thirteen fourteen";
-    const ops: Operator[] = [];
-    for (let i = 0; i < 5; i++) {
-      ops.push({
-        kind: "glue",
-        position: { kind: "after", paragraph_id: `p${i + 1}` },
-        text: glue14,
-      });
+describe("Voice Guardian — validateProposal", () => {
+  it("accepts a pure structural proposal", () => {
+    const ops: Operator[] = [
+      { kind: "move", paragraph_id: "p2", target_position: { kind: "at", where: "start" } },
+    ];
+    const r = validateProposal(doc, ops, profile());
+    expect(r.ok).toBe(true);
+    if (r.ok) {
+      expect(r.voice_check.glue_budget_used).toBe(0);
+      expect(r.voice_check.forbidden_tokens_violated).toEqual([]);
     }
-    const result = validateProposal({
-      document: doc,
-      proposal: { intent: "glue", rationale: "bridge", operators: ops },
-    });
-    expect(result.valid).toBe(false);
-    expect(result.errors.some((e) => e.includes("total glue tokens") && e.includes("exceeds budget 60"))).toBe(true);
   });
 
-  it("detects forbidden tokens in glue text", () => {
-    const doc = makeDoc(["Hello."]);
-    const profile = makeProfile({ forbidden_tokens: ["synergy", "leverage"] });
-    const result = validateProposal({
-      document: doc,
-      proposal: {
-        intent: "glue",
-        rationale: "bridge",
-        operators: [
-          { kind: "glue", position: { kind: "at", where: "end" }, text: "leverage this synergy" },
-        ],
-      },
-      profile,
-    });
-    expect(result.valid).toBe(false);
-    expect(result.errors.some((e) => e.includes("forbidden tokens"))).toBe(true);
+  it("rejects glue over the per-op token budget", () => {
+    const longGlue = Array.from({ length: 20 }, (_, i) => `word${i}`).join(" ");
+    const ops: Operator[] = [
+      { kind: "glue", position: { kind: "at", where: "end" }, text: longGlue },
+    ];
+    const r = validateProposal(doc, ops, profile());
+    expect(r.ok).toBe(false);
+    if (!r.ok) expect(r.reasons.join(" ")).toMatch(/exceeds 15 tokens/);
   });
 
-  it("passes a valid move proposal", () => {
-    const doc = makeDoc(["First.", "Second.", "Third."]);
-    const result = validateProposal({
-      document: doc,
-      proposal: {
-        intent: "reorder",
-        rationale: "flow",
-        operators: [
-          { kind: "move", paragraph_id: "p3", target_position: { kind: "at", where: "start" } },
-        ],
+  it("rejects forbidden tokens in glue", () => {
+    const ops: Operator[] = [
+      { kind: "glue", position: { kind: "at", where: "end" }, text: "we delve deeper" },
+    ];
+    const r = validateProposal(doc, ops, profile(["delve"]));
+    expect(r.ok).toBe(false);
+    if (!r.ok) expect(r.reasons.join(" ")).toMatch(/forbidden tokens used: delve/);
+  });
+
+  it("rejects a migrate that changes more than 50% of tokens", () => {
+    const ops: Operator[] = [
+      {
+        kind: "migrate",
+        paragraph_id: "p2",
+        rewrite_text: "Totally unrelated replacement content with nothing shared",
+        change_budget_tokens: 8,
       },
-    });
-    expect(result.valid).toBe(true);
-    expect(result.afterDocument!.paragraphs[0]!.id).toBe("p3");
+    ];
+    const r = validateProposal(doc, ops, profile());
+    expect(r.ok).toBe(false);
+    if (!r.ok) expect(r.reasons.join(" ")).toMatch(/migrate change-pct/);
+  });
+
+  it("rejects topologically invalid operators", () => {
+    const ops: Operator[] = [
+      { kind: "move", paragraph_id: "does-not-exist", target_position: { kind: "at", where: "end" } },
+    ];
+    const r = validateProposal(doc, ops, profile());
+    expect(r.ok).toBe(false);
+    if (!r.ok) expect(r.reasons.join(" ")).toMatch(/topology error/);
+  });
+});
+
+describe("applyOperators — conformance", () => {
+  it("move-to-start reorders deterministically", () => {
+    const out = applyOperators(doc, [
+      { kind: "move", paragraph_id: "p2", target_position: { kind: "at", where: "start" } },
+    ]);
+    expect(out.paragraphs.map((p) => p.id)).toEqual(["p2", "p1"]);
+  });
+
+  it("split divides a paragraph at the sentence boundary without adding words", () => {
+    const out = applyOperators(doc, [
+      { kind: "split", paragraph_id: "p1", after_sentence_index: 0 },
+    ]);
+    expect(out.paragraphs[0]!.text).toBe("First sentence here.");
+    expect(out.paragraphs[1]!.text).toBe("Second sentence here.");
+  });
+
+  it("does not mutate the input document", () => {
+    const before = JSON.stringify(doc);
+    applyOperators(doc, [{ kind: "delete", paragraph_id: "p1" }]);
+    expect(JSON.stringify(doc)).toBe(before);
   });
 });

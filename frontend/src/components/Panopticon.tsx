@@ -1,7 +1,7 @@
 import { useEffect, useState } from "react";
-import { X, Eye, Settings, History } from "lucide-react";
+import { X, Eye, Settings, History, Activity } from "lucide-react";
 import { useSession } from "@/store/session";
-import { getProfile, putProfile } from "@/lib/api";
+import { getProfile, putProfile, getEnvironment, type EnvironmentInfo } from "@/lib/api";
 import type { VoiceProfile } from "@/lib/types";
 
 type Props = {
@@ -9,11 +9,28 @@ type Props = {
 };
 
 export function Panopticon({ onClose }: Props) {
-  const { panopticonTab, setPanopticonTab, profile, setProfile, recentDecisions, inspectRead } = useSession();
+  const { panopticonTab, setPanopticonTab, profile, setProfile, recentDecisions, inspectRead, sessionId } = useSession();
   const [draftAnchor, setDraftAnchor] = useState("");
   const [draftTokens, setDraftTokens] = useState<string>("");
   const [saving, setSaving] = useState(false);
   const [savedAt, setSavedAt] = useState<string | null>(null);
+  const [env, setEnv] = useState<EnvironmentInfo | null>(null);
+
+  useEffect(() => {
+    if (panopticonTab !== "environment") return;
+    let active = true;
+    void (async () => {
+      try {
+        const e = await getEnvironment(sessionId);
+        if (active) setEnv(e);
+      } catch {
+        // ignore
+      }
+    })();
+    return () => {
+      active = false;
+    };
+  }, [panopticonTab, sessionId, recentDecisions.length]);
 
   useEffect(() => {
     let active = true;
@@ -78,6 +95,12 @@ export function Panopticon({ onClose }: Props) {
           active={panopticonTab === "log"}
           onClick={() => setPanopticonTab("log")}
         />
+        <TabButton
+          icon={<Activity size={13} />}
+          label="Environment"
+          active={panopticonTab === "environment"}
+          onClick={() => setPanopticonTab("environment")}
+        />
       </nav>
 
       <div className="flex-1 overflow-y-auto">
@@ -98,6 +121,9 @@ export function Panopticon({ onClose }: Props) {
         )}
         {panopticonTab === "log" && (
           <LogTab entries={recentDecisions} />
+        )}
+        {panopticonTab === "environment" && (
+          <EnvironmentTab env={env} />
         )}
       </div>
     </aside>
@@ -295,6 +321,115 @@ function LogTab({ entries }: { entries: Array<{ ts: string; intent: string; deci
           <div className="text-[12px] text-muted italic mt-1">{e.rationale}</div>
         </div>
       ))}
+    </div>
+  );
+}
+
+function signed(x: number): string {
+  return (x >= 0 ? "+" : "") + x.toFixed(2);
+}
+
+function EnvironmentTab({ env }: { env: EnvironmentInfo | null }) {
+  if (!env) {
+    return <div className="px-5 py-6 font-sans text-[13px] text-muted">Loading environment…</div>;
+  }
+  const stats = env.reward_stats;
+  return (
+    <div className="px-5 py-5 font-sans text-[13px] space-y-5">
+      <div>
+        <div className="text-[11px] uppercase tracking-widest text-muted mb-1">Environment</div>
+        <div className="font-mono text-[12px] text-ink">{env.env}</div>
+        <p className="text-[12px] text-muted leading-relaxed mt-2">{env.description}</p>
+        <p className="text-[11px] text-muted mt-2 italic">
+          This is the model being built of you, in the open. Your profile and the trajectory log live in <span className="font-mono">~/.alfred</span> — yours to read, edit, or delete.
+        </p>
+      </div>
+
+      <div>
+        <div className="text-[11px] uppercase tracking-widest text-muted mb-2">Reward signal (live)</div>
+        {!stats || stats.episodes === 0 ? (
+          <p className="text-[12px] text-muted italic">No decisions yet — the reward model is empty. Accept, reject, or edit a proposal to start it.</p>
+        ) : (
+          <div className="space-y-3">
+            <div className="grid grid-cols-2 gap-2">
+              <Stat label="Episodes" value={stats.episodes} />
+              <div className="bg-chrome rounded px-3 py-2">
+                <div className="text-[10px] uppercase tracking-widest text-muted">Mean reward</div>
+                <div className="text-[18px] font-medium text-ink tabular-nums">{signed(stats.mean_reward)}</div>
+              </div>
+            </div>
+            {stats.by_decision.length > 0 && (
+              <div>
+                <div className="text-[10px] uppercase tracking-widest text-muted mb-1">By decision</div>
+                <ul className="text-[12px] space-y-0.5">
+                  {stats.by_decision.map((d) => (
+                    <li key={d.decision} className="flex justify-between">
+                      <span className="text-ink">{d.decision} <span className="text-muted">×{d.count}</span></span>
+                      <span className="text-muted tabular-nums">{signed(d.mean_reward)}</span>
+                    </li>
+                  ))}
+                </ul>
+              </div>
+            )}
+            {stats.by_operator.length > 0 && (
+              <div>
+                <div className="text-[10px] uppercase tracking-widest text-muted mb-1">Mean reward by operator</div>
+                <ul className="text-[12px] space-y-0.5">
+                  {stats.by_operator.map((o) => (
+                    <li key={o.operator} className="flex justify-between">
+                      <span className="font-mono text-ink">{o.operator} <span className="text-muted">×{o.count}</span></span>
+                      <span className="text-muted tabular-nums">{signed(o.mean_reward)}</span>
+                    </li>
+                  ))}
+                </ul>
+              </div>
+            )}
+            <div className="text-[11px] text-muted">
+              {stats.trajectory_count} rollout{stats.trajectory_count === 1 ? "" : "s"} written to the trajectory dataset.
+            </div>
+          </div>
+        )}
+      </div>
+
+      <div>
+        <div className="text-[11px] uppercase tracking-widest text-muted mb-2">Reward function</div>
+        <p className="text-[12px] text-muted leading-relaxed mb-2">{env.reward_function.description}</p>
+        <ul className="text-[12px] space-y-0.5">
+          {env.reward_function.mapping.map((m) => (
+            <li key={m.decision} className="flex justify-between">
+              <span className="text-ink">{m.decision}</span>
+              <span className="font-mono text-muted">{m.reward}</span>
+            </li>
+          ))}
+        </ul>
+      </div>
+
+      <div>
+        <div className="text-[11px] uppercase tracking-widest text-muted mb-2">Action space ({env.action_space.length})</div>
+        <ul className="space-y-1.5">
+          {env.action_space.map((a) => (
+            <li key={a.name} className="bg-chrome rounded p-2.5">
+              <div className="font-mono text-[12px] text-ink">{a.name}</div>
+              <div className="text-[11px] text-muted leading-snug mt-0.5">{a.description}</div>
+            </li>
+          ))}
+        </ul>
+      </div>
+
+      <div>
+        <div className="text-[11px] uppercase tracking-widest text-muted mb-2">Verifier — Voice Guardian</div>
+        <p className="text-[12px] text-muted leading-relaxed mb-2">{env.verifier.description}</p>
+        <ul className="text-[12px] text-ink space-y-1 list-disc pl-4">
+          {env.verifier.constraints.map((c, i) => (
+            <li key={i} className="leading-snug">{c}</li>
+          ))}
+        </ul>
+      </div>
+
+      <div className="pt-3 border-t border-rule">
+        <div className="text-[10px] uppercase tracking-widest text-muted">Episode</div>
+        <div className="text-[12px] text-ink mt-0.5">{env.episode}</div>
+      </div>
     </div>
   );
 }

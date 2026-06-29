@@ -1,0 +1,28 @@
+[
+  {
+    "_note": "ILLUSTRATIVE SMOKE-TEST ONLY — hand-authored, NOT evidence. Replace with a real multi-author corpus and --api rewrites.",
+    "author": "A_blunt_fragments",
+    "original": "The market is not rational. It never was. Prices lurch on rumor. On mood. Margin calls do not care about your model. Neither does the tape.",
+    "rewrite": "It is important to recognize that financial markets do not always behave rationally, and indeed they never have. Asset prices are frequently driven by speculation and sentiment rather than fundamentals, and margin calls are executed regardless of an investor's analytical framework."
+  },
+  {
+    "author": "B_ornate_subordinate",
+    "original": "What I keep returning to, in the long afternoons when the work refuses to cohere, is the suspicion — unprovable, but persistent — that the structure I am chasing was never mine to find, only mine to ruin.",
+    "rewrite": "I often think about the idea that the structure I am looking for may not be something I can truly discover, but rather something I can only disrupt, especially during long afternoons when my work does not come together."
+  },
+  {
+    "author": "C_casual_contractions",
+    "original": "Look, I'm not gonna pretend I had a plan. I didn't. I just kept showing up, kept breaking stuff, and somewhere in there it started working. Weird how that goes.",
+    "rewrite": "To be transparent, I did not begin with a clear plan. Instead, I continued to show up consistently and experiment, and over time the approach gradually began to succeed. It is interesting how these things develop."
+  },
+  {
+    "author": "D_dense_technical",
+    "original": "The allocator coalesces freed spans lazily; fragmentation is bounded not by compaction but by a size-class invariant that the fast path never violates, which is the whole trick.",
+    "rewrite": "The memory allocator combines freed spans in a lazy manner. Rather than relying on compaction to limit fragmentation, it maintains a size-class invariant that is consistently preserved along the fast path, which is the key mechanism."
+  },
+  {
+    "author": "E_terse_imperative",
+    "original": "Cut the adverbs. Cut the throat-clearing. Say the true thing, then stop. If a sentence survives that, keep it. Most won't.",
+    "rewrite": "You should consider removing unnecessary adverbs and introductory filler. Aim to state your point clearly and then conclude. If a sentence holds up to this scrutiny, it is worth keeping, though many sentences will not."
+  }
+]
